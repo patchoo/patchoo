@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.github.munkiforjamf.junki-trigger-preupdate</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/sbin/jamf</string>
+		<string>policy</string>
+		<string>-trigger</string>
+		<string>preupdate</string>
+		<string>-randomDelaySeconds</string>
+		<string>1800</string>
+	</array>
+	<key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>12</integer>
+        <key>Minute</key>
+        <integer>00</integer>
+    </dict>
+	<key>UserName</key>
+	<string>root</string>
+</dict>
+</plist>

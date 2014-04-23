@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extensionAttribute>
+<displayName>junki Defer Count</displayName>
+<description>junki Defer Counter - 10 threshold.</description>
+<dataType>number</dataType>
+<scriptContentsMac>#!/bin/bash&#13;
+prefs="/Library/Application Support/junki/com.github.munkiforjamf.junki"&#13;
+key="DeferCount"&#13;
+&#13;
+result=$(defaults read "$prefs" "$key")&#13;
+&#13;
+if [ "$?" == "0" ]&#13;
+then&#13;
+    echo "&lt;result&gt;$result&lt;/result&gt;"&#13;
+else&#13;
+    echo "&lt;result&gt;0&lt;/result&gt;"&#13;
+fi&#13;
+</scriptContentsMac>
+<scriptContentsWindows/>
+</extensionAttribute>

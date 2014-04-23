@@ -1,0 +1,22 @@
+#!/bin/bash
+# preinstall
+# remove any LaunchDaemons and unload
+
+pathToScript=$0
+pathToPackage=$1
+targetLocation=$2
+targetVolume=$3
+
+shopt -s nullglob
+for launchdplist in $targetVolume/Library/LaunchDaemons/com.github.munkiforjamf.junki-trigger-*
+do 
+	if [ "$targetVolume" == "/" ]
+	then
+		echo "unload launchdaemon $launchdplist ..."
+		launchctl unload $launchdplist
+	fi
+	echo "rm launchdaemon $launchdplist ..."
+	rm $launchdplist
+done
+
+exit 0		## Success

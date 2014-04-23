@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extensionAttribute>
+<displayName>junki Installs</displayName>
+<description>junki Installs cached and available.</description>
+<dataType>string</dataType>
+<scriptContentsMac>#!/bin/bash&#13;
+prefs="/Library/Application Support/junki/com.github.munkiforjamf.junki"&#13;
+key="InstallsAvail"&#13;
+&#13;
+result=$(defaults read "$prefs" "$key")&#13;
+&#13;
+if [ "$?" == "0" ]&#13;
+then&#13;
+    echo "&lt;result&gt;$result&lt;/result&gt;"&#13;
+else&#13;
+    echo "&lt;result&gt;n/a&lt;/result&gt;"&#13;
+fi&#13;
+</scriptContentsMac>
+<scriptContentsWindows/>
+</extensionAttribute>

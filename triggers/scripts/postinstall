@@ -1,0 +1,21 @@
+#!/bin/bash
+# postinstall
+# load launchdaemons
+
+pathToScript=$0
+pathToPackage=$1
+targetLocation=$2
+targetVolume=$3
+
+shopt -s nullglob
+# if it's on / load them
+if [ "$targetVolume" == "/" ]
+then
+	for launchdplist in /Library/LaunchDaemons/com.github.munkiforjamf.junki-trigger-*
+	do 
+		echo "load launchdaemon $launchdplist ..."
+		launchctl load $launchdplist
+	done
+fi
+
+exit 0		## Success
