@@ -8,7 +8,7 @@ Junki somewhat emulates [munki](https://code.google.com/p/munki/) workflows and 
 
 Casper is the **best** all round management platform for all things Apple, but the fact it started it's life a few years a go when all Mac admins were using image based deployment workflows has meant there is gap in functionality when it comes to post deployment patching. You can deploy patches via policies, but after asking about best practice, I wasn't really happy with any current solutions or implementations.  
 
-Munki is the absolute, positiviely best way to deploy and *thin image* Macs. It does one thing, and it does it amazingly well. I can install software and ensure Macs are patched better than anything. Junki is inspired, and hopefully brings some of munki's greatness to Casper.
+Munki is the absolute, positiviely best way to deploy and *thin image* Macs. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than other system. Junki is inspired, and *hopefully* brings some of munki's greatness to Casper.
 
 #### junki isn't just a script... ####
   
@@ -27,7 +27,7 @@ From a user experience persective it;
 * ensures users are logged out during installations.
 * integrates nicely with Self Service.
 
-![User Prompt](./docs/images/prompt.png)
+![User Prompt](https://raw.githubusercontent.com/munkiforjamf/junki/master/docs/images/prompt.png)
 
 ### DISCLAIMER: USE AT YOUR OWN RISK! ###
 
