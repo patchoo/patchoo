@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <title>Junki by munkiforjamf</title>
+  </head>
+
+  <body>
+    <div id="container">
+      <div class="inner">
+
+        <header>
+          <h1>Junki</h1>
+          <h2> a.k.a. munki for jamf</h2>
+        </header>
+
+        <section id="downloads" class="clearfix">
+          <a href="https://github.com/munkiforjamf/junki/zipball/master" id="download-zip" class="button"><span>Download .zip</span></a>
+          <a href="https://github.com/munkiforjamf/junki/tarball/master" id="download-tar-gz" class="button"><span>Download .tar.gz</span></a>
+          <a href="https://github.com/munkiforjamf/junki" id="view-on-github" class="button"><span>View on GitHub</span></a>
+        </section>
+
+        <hr>
+
+        <section id="main_content">
+          <h1>
+<a name="junki" class="anchor" href="#junki"><span class="octicon octicon-link"></span></a>junki</h1>
+
+<p><a href="https://github.com/munkiforjamf/junki">https://github.com/munkiforjamf/junki</a></p>
+
+<p>Junki somewhat emulates <a href="https://code.google.com/p/munki/">munki</a> workflows and user experience for JAMF Software's <a href="http://www.jamfsoftware.com/products/casper-suite/">Casper Suite</a>.  </p>
+
+<p>Casper is the <strong>best</strong> all round management platform for all things Apple, but the fact it started it's life a few years a go when all Mac admins were using image based deployment workflows has meant there is gap in functionality when it comes to post deployment patching. You can deploy patches via policies, but after asking about best practice, I wasn't really happy with any current solutions or implementations.  </p>
+
+<p>Munki is the absolute, positiviely best way to deploy and <em>thin image</em> Macs. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than other system. Junki is inspired, and <em>hopefully</em> brings some of munki's greatness to Casper.</p>
+
+<h4>
+<a name="junki-isnt-just-a-script" class="anchor" href="#junki-isnt-just-a-script"><span class="octicon octicon-link"></span></a>junki isn't just a script...</h4>
+
+<p>It's a patching and deployment methodology that;  </p>
+
+<ul>
+<li>allows munki style deployment groups (<em>dev / beta / production / etc</em>)</li>
+<li>will re-write your ASU catalogURL so the same deployment groups can be pointed at <a href="https://jamfnation.jamfsoftware.com/viewProduct.html?id=180&amp;view=info">NetSUS</a> / <a href="https://github.com/wdas/reposado">reposado</a> branches.</li>
+<li>can chain incremental updaters (<em>eg. MS Office 2011 14.3.7, 14.3.8, 14.3.9</em>)</li>
+<li>leverages existing existing Casper frameworks and methods (triggers, policies, smart groups) </li>
+</ul><p>From a user experience persective it;   </p>
+
+<ul>
+<li>provides a much needed Casper a GUI for software installation.</li>
+<li>unifies Casper and Apple Software Update installations.</li>
+<li>allows installations to be deferred, allows flexibiliy but maintaining compliance.</li>
+<li>ensures users are logged out during installations.</li>
+<li>integrates nicely with Self Service.</li>
+</ul><p><img src="https://raw.githubusercontent.com/munkiforjamf/junki/master/docs/images/prompt.png" alt="User Prompt"></p>
+
+<h3>
+<a name="disclaimer-use-at-your-own-risk" class="anchor" href="#disclaimer-use-at-your-own-risk"><span class="octicon octicon-link"></span></a>DISCLAIMER: USE AT YOUR OWN RISK!</h3>
+
+<p><em>The documentation is sparse, the code is sloppy, it shouldn't be written in bash, but it works!
+I am not a coder, but I do think I have nailed the workflows and user experience. It probably
+should be re-written in Python once I am more comfortable.</em></p>
+
+<h2>
+<a name="requirements" class="anchor" href="#requirements"><span class="octicon octicon-link"></span></a>Requirements</h2>
+
+<ul>
+<li>CocoaDialog 3.x</li>
+<li>JAMF Casper (developed &amp; tested on 9.22)</li>
+<li>OSX (10.6-10.9)</li>
+<li><em>A big bunch of Macs!</em></li>
+</ul><h2>
+<a name="documentation" class="anchor" href="#documentation"><span class="octicon octicon-link"></span></a>Documentation</h2>
+
+<p><a href="https://github.com/munkiforjamf/junki/docs/_index.md">https://github.com/munkiforjamf/junki/docs/_index.md</a>   </p>
+
+<h2>
+<a name="help-out" class="anchor" href="#help-out"><span class="octicon octicon-link"></span></a>Help out!</h2>
+
+<p>If you want to help in anyway please reach out via email or jump onto GitHub.</p>
+
+<p>If you find it useful and want to say thank you, link up on LinkedIn and write me a recommendation.
+<a href="http://au.linkedin.com/in/lachlanstewart">http://au.linkedin.com/in/lachlanstewart</a>  </p>
+
+<p><em>Enjoy junki responsibly!</em></p>
+
+<p>Lachlan.</p>
+        </section>
+
+        <footer>
+          Junki is maintained by <a href="https://github.com/munkiforjamf">munkiforjamf</a><br>
+          This page was generated by <a href="http://pages.github.com">GitHub Pages</a>. Tactile theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.
+        </footer>
+
+        
+      </div>
+    </div>
+  </body>
+</html>
