@@ -27,7 +27,7 @@ From a user experience persective it;
 * ensures users are logged out during installations.
 * integrates nicely with Self Service.
 
-![User Prompt](./docs/images/prompt.png)
+![User Prompt](https://raw.githubusercontent.com/munkiforjamf/junki/master/docs/images/prompt.png)
 
 ### DISCLAIMER: USE AT YOUR OWN RISK! ###
 
