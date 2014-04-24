@@ -6,9 +6,9 @@ https://github.com/munkiforjamf/junki
 
 Junki somewhat emulates [munki](https://code.google.com/p/munki/) workflows and user experience for JAMF Software's [Casper Suite](http://www.jamfsoftware.com/products/casper-suite/).  
 
-Casper is the **best** all round management platform for all things Apple, but the fact it started it's life a few years a go when all Mac admins were using image based deployment workflows has meant there is gap in functionality when it comes to post deployment patching. You can deploy patches via policies, but after asking about best practice, I wasn't really happy with any current solutions or implementations.  
+Casper is the **best** all round management platform for all things Apple, but the fact it started it's life a few years a go when all Mac admins were using image based deployment workflows has meant there is a gap in functionality when it comes to post deployment patching. You can deploy patches via policies, but after looking at current best practices with Casper, I wasn't really happy with any current solutions or implementations.  
 
-Munki is the absolute, positiviely best way to deploy and *thin image* Macs. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than other system. Junki is inspired, and *hopefully* brings some of munki's greatness to Casper.
+Munki is the absolute, positiviely best way to deploy and *thin image* Macs. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than other system. Junki is munki inspired, and *hopefully* brings some of munki's greatness to Casper.
 
 #### junki isn't just a script... ####
   
@@ -48,7 +48,7 @@ Requirements
 Documentation
 -------------
      
-https://github.com/munkiforjamf/junki/docs/_index.md   
+https://github.com/munkiforjamf/junki/blob/master/docs/_index.md 
 
 
 Help out!
@@ -57,11 +57,9 @@ Help out!
 
 If you want to help in anyway please reach out via email or jump onto GitHub.
 
-If you find it useful and want to say thank you, link up on LinkedIn and write me a recommendation.
-http://au.linkedin.com/in/lachlanstewart  
-
-
-*Enjoy junki responsibly!*
+If you find it useful and want to say thank you, link up on LinkedIn, tell me how and where you are using it, and write me a recommendation whilst you are there! http://au.linkedin.com/in/lachlanstewart  
+  
+#### Enjoy junki responsibly!####
 
 Lachlan.
 
