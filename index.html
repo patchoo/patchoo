@@ -35,22 +35,27 @@
 
 <p>Junki somewhat emulates <a href="https://code.google.com/p/munki/">munki</a> workflows and user experience for JAMF Software's <a href="http://www.jamfsoftware.com/products/casper-suite/">Casper Suite</a>.  </p>
 
-<p><strong>Casper</strong> is the best all round management platform for all things Apple. It's incredibly powerful and the JSS has no competition, but the fact it started it's life a few years a go when Mac admins were using image based deployment workflows has meant there is a gap in functionality when it comes to post deployment patching. You can deploy patches via different built in triggers and policies but  there is no built-in GUI for user interaction and the user experience isn't great.</p>
+<p><strong>Casper</strong> is the best all round management platform for all things Apple. It's incredibly powerful and the JSS has no competition, but the fact it started it's life a few years a go when Mac admins were using image based deployment workflows has meant there is a gap in functionality when it comes to post deployment patching. You can deploy patches via different built in triggers and policies but  there is no built-in GUI for user interaction, there is no cohesive way to deploy Apple and 3rd party updates and the user experience is lacking.</p>
 
-<p><strong>Munki</strong> is the absolute best way to deploy and <em>thin image</em> Macs. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than any other system. It provides a great GUI, unifies Apple and 3rd party software installs and allows installations to be deferred. . Junki is munki inspired, and <em>hopefully</em> brings some of munki's greatness to Casper.</p>
+<p><strong>Munki</strong> is the absolute best way to deploy and install software on many Macs at once. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than any other system. It provides a great end user GUI, unifies Apple and 3rd party software installations and allows installations to be deferred. Junki is munki inspired, and <em>hopefully</em> brings some of munki's greatness to Casper.</p>
 
-<p>A lot of people have built different solutions on JAMFnation, but I think junki is the best and most complete way to deploy and patch your Macs "in the wild". It provides a great workflow for admins and an excellent user experience.</p>
+<p>A lot of people have built different solutions on JAMFnation, but I think junki is the best and most complete way to deploy and patch your Macs <em>in the wild</em>. It provides a great workflow for admins and an excellent user experience.</p>
 
 <h3>
-<a name="junki-isnt-just-a-script" class="anchor" href="#junki-isnt-just-a-script"><span class="octicon octicon-link"></span></a>junki isn't just a script...</h3>
+<a name="why-not-just-use-munki" class="anchor" href="#why-not-just-use-munki"><span class="octicon octicon-link"></span></a>Why not just use munki?</h3>
+
+<p>That's certainly an option, and many people do use munki and Casper. It does mean administering another tool and there is no formal training or certification track for munki, which is important to some organisations.</p>
+
+<h3>
+<a name="junki-isnt-just-a-script" class="anchor" href="#junki-isnt-just-a-script"><span class="octicon octicon-link"></span></a>Junki isn't just a script...</h3>
 
 <p>...it's a patching and deployment methodology that;  </p>
 
 <ul>
-<li>allows munki style deployment groups (<em>dev / beta / production / etc</em>)</li>
+<li>allows munki style deployment groups (<em>dev / beta / production / etc</em>) based on JSS computer group membership.</li>
 <li>will write your Apple Software Update catalogURL dynamically so these deployment groups can be pointed at <a href="https://jamfnation.jamfsoftware.com/viewProduct.html?id=180&amp;view=info">NetSUS</a> / <a href="https://github.com/wdas/reposado">reposado</a> branches.</li>
 <li>can chain incremental updaters intelligently (<em>eg. MS Office 2011 14.3.7, 14.3.8, 14.3.9</em>)</li>
-<li>leverages existing Casper frameworks and methods (triggers, policies, smart groups) </li>
+<li>leverages existing and familiar Casper frameworks and methods (triggers, policies, smart groups) </li>
 </ul><p>From a user experience perspective it;   </p>
 
 <ul>
@@ -64,7 +69,7 @@
 <h3>
 <a name="disclaimer-use-at-your-own-risk" class="anchor" href="#disclaimer-use-at-your-own-risk"><span class="octicon octicon-link"></span></a>DISCLAIMER: USE AT YOUR OWN RISK!</h3>
 
-<p><em>The documentation is sparse, the code isn't pretty and it shouldn't be written in bash but it works! I am not a professional programmer, but I do think I have nailed the workflows and user experience. It probably should be re-written in Python once I am more comfortable. It's released on GitHub so you can help!</em></p>
+<p><em>The documentation is sparse, the code isn't pretty and it shouldn't be written in bash but it works! I am not a programmer, I'm just a lowly systems engineer that's kludged a few scripts, but I do think I have nailed the workflows and user experience. It probably should be re-written in Python once I am more comfortable. It's here on GitHub so you can help!</em></p>
 
 <h2>
 <a name="requirements" class="anchor" href="#requirements"><span class="octicon octicon-link"></span></a>Requirements</h2>
@@ -72,7 +77,7 @@
 <ul>
 <li>CocoaDialog 3.x</li>
 <li>JAMF Casper (developed &amp; tested on 9.22)</li>
-<li>http enabled dist points / JDS (policy within policy)</li>
+<li>http enabled dist points or JDS (policy within policy doesn't play nice with fileshare based CDPs)</li>
 <li>OSX (10.6-10.9)</li>
 <li><em>A big bunch of Macs!</em></li>
 </ul><h2>
