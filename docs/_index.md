@@ -16,8 +16,8 @@ Documentation
 	* [Setup Categories](setup_categories.md)
 	* [Install CocoaDialog](install_cocoadialog.md)
 	* [Install triggers](install_triggers.md)
-	* [Setup Smart Groups](setup_smart_groups.md)
 	* [Setup Extension Attributes](setup_extension_attributes.md)
+	* [Setup Smart Groups](setup_smart_groups.md)
 	* [Setup Core Policies](setup_core_policies.md)
 * Deploying Apple Software Updates
 	* [Using Apple Software Update Server](using_apple_software_update_server.md)
