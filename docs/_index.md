@@ -19,9 +19,7 @@ Documentation
 	* [Setup Extension Attributes](setup_extension_attributes.md)
 	* [Setup Smart Groups](setup_smart_groups.md)
 	* [Setup Core Policies](setup_core_policies.md)
-* Deploying Apple Software Updates
-	* [Using Apple Software Update Server](using_apple_software_update_server.md)
-	* [Using Reposado or NetSUS](using_reposado_or_netsus.md)
+* [Deploying Apple Software Updates](deploying_apple_software_updates.md)
 * Deploying Software via Casper Policies
 	* [Scoping Software Deployment Smart Groups](scoping_software_deployment_smart_groups.md)
 	* [Deploying Standalone or Drag and Drop Installers](deploying_standalone_Installers.md)

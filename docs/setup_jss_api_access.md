@@ -10,8 +10,8 @@ The junki script requires read-only access to the JSS API in order to be able to
 2. Accounts and Settings
 3. New
 4. Account Tab
-	* Username: apiuser
-	* Access: Full Access
+	* Username: `apiuser`
+	* Access: `Full Access`
 	* Email: *blank*
 	* Password: *a strong password* - try [here](https://www.random.org/passwords/?num=1&len=24&format=html&rnd=new)
 	![API User](images/apiuser.png)

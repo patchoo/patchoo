@@ -7,10 +7,10 @@ As with the 0junki.sh script, naming your categories with preceeding 0's will me
 
 The suggested categories are:
 
-* 0junki - *for software updates in production*
-* 0junki-beta - *for software updates in beta*
-* 0junki-dev - *for software updates in dev/testing*
-* 0junki-z-core - *for the junki's core policies that drive the process*
+* `0junki` - for software updates in production
+* `0junki-beta` - for software updates in beta
+* `0junki-dev` - for software updates in dev/testing
+* `0junki-z-core` - for the junki's core policies that drive the process
 
 If you aren't using [junki Advanced mode](advanced_junki_overview.md) you can skip setting up the dev and beta categories.
 

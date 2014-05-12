@@ -56,14 +56,14 @@ blockingapps=( "PowerPoint.app" "Keynote.app" )
 
 `````
 
-* defermode=true - allows the user to defer installations 10 times (default) before the installation is forced.  
+* `defermode=true` - allows the user to defer installations 10 times (default) before the installation is forced.  
   **note**: Changing the defaultthreshold has no affect once the script is run once as it's written to the preference file on the client. This will allow you to set different threshold on clients. In order to change the deferthreshold to '5' on a client, run directly, or via policy:
 
 ``````
 defaults write /Library/Application\ Support/junki/com.github.munkiforjamf.junki DeferThreshold -int 5
 ``````
-* blockingappmode=true - enabled blockingappmode, the threshold will allow x number of prompts to be blocked before a prompt will come up. Due to the fact that blockingapp handling isn't idea, users that run blockingapps all the time can miss prompts indefinitely. The threshold addresses this until we can improve the blocking app check.
-* blockingapps=( "array" ) - is a list of processes to check for. If found, no reminders or prompts will be displayed in order to mitigate cases where a prompt may be displayed during a presentation.
+* `blockingappmode=true` - enabled blockingappmode, the threshold will allow x number of prompts to be blocked before a prompt will come up. Due to the fact that blockingapp handling isn't idea, users that run blockingapps all the time can miss prompts indefinitely. The threshold addresses this until we can improve the blocking app check.
+* `blockingapps=( "array" )` - is a list of processes to check for. If found, no reminders or prompts will be displayed in order to mitigate cases where a prompt may be displayed during a presentation.
 
 ### Advanced Mode Configuration
 
