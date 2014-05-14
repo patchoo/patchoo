@@ -20,7 +20,7 @@ Documentation
 	* [Setup Smart Groups](setup_smart_groups.md)
 	* [Setup Core Policies](setup_core_policies.md)
 * [Deploying Apple Software Updates](deploying_apple_software_updates.md)
-* Deploying Software via Casper Policies
+* [Deploying Software via Casper Policies](deploying_software_via_policy.md)
 	* [Scoping Software Deployment Smart Groups](scoping_software_deployment_smart_groups.md)
 	* [Deploying Standalone or Drag and Drop Installers](deploying_standalone_Installers.md)
 	* [Deploying Chained Incremental Patches](deploying_chained_incremental_patches.md)
