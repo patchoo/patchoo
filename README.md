@@ -33,7 +33,14 @@ From a user experience perspective it;
 * ensures users are logged out during installations.
 * integrates nicely with Self Service.
 
+### Demonstration ###
+
 ![User Prompt](https://raw.githubusercontent.com/munkiforjamf/junki/master/docs/images/prompt.png)
+
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/aeOOPHH3-NY/0.jpg)](http://www.youtube.com/watch?v=aeOOPHH3-NY)
+
+####[Demo jamf.log](https://raw.githubusercontent.com/munkiforjamf/junki/master/docs/jamf_junki.log.txt)
+
 
 ### DISCLAIMER: USE AT YOUR OWN RISK! ###
 

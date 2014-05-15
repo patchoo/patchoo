@@ -87,9 +87,9 @@ updatetrigger[0]="update"
 updatetrigger[1]="update-dev"
 updatetrigger[2]="update-beta"
 
-# if using reposado mode these will be appended to computer's SoftwareUpdate server catalogs as per reposado -- if not using reposado mode the computer's SwUpdate server will remain untouched.
+# if using junki asu release mode these will be appended to computer's SoftwareUpdate server catalogs as per reposado forks -- if not using asu release mode the computer's SwUpdate server will remain untouched.
 # eg. http://swupdate.your.domain:8088/content/catalogs/others/index-leopard.merged-1${asureleasecatalogs[i]}.sucatalog
-junkireposadomode=true
+junkiasureleasemode=true
 asureleasecatalog[0]="prod"
 asureleasecatalog[1]="dev"
 asureleasecatalog[2]="beta"

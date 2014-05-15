@@ -9,3 +9,5 @@ The update process is triggered via a custom trigger (default at midday).
 
 ### Junki "install" overview
 
+
+**INSERT DIAGRAM HERE**

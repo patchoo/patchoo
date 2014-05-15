@@ -9,6 +9,7 @@ Documentation
 
 * [Introduction](introduction.md)
 * [Overview](overview.md)
+* [Requirements](requirements.md)
 * Setting Up
 	* [Setup JSS API access](setup_jss_api_access.md)
 	* [Configuring junki.sh](configuring_junki.sh.md)
@@ -33,6 +34,6 @@ Documentation
 	* [Advanced junki Overview](advanced_junki_overview.md) 
 	* [Setup Computer Deployment Groups](setup_computer_deployment_groups.md)
 	* [Setup junkiSWReleaseMode](setup_junkiswreleasemode.md)
-	* [Setup junkiReposadoMode](setup_junkireposadomode.md)
+	* [Setup junkiASUReleaseMode](setup_junkiasureleasemode.md)
 	
 

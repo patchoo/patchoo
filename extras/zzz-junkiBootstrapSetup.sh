@@ -1,11 +1,3 @@
-Using Bootstrap post Casper Imaging
------------------------------------
-
-a script like this should do it... but I am looking into issues around waiting for enrollment.
-
-**TESTING**
-
-```
 #!/bin/bash
 #
 # this script will setup junki bootstrap, it needs to wait for the the mac to be enrolled and the first run scripts to finish
@@ -33,6 +25,6 @@ a script like this should do it... but I am looking into issues around waiting f
 #done
 
 jamf policy -trigger bootstrapsetup
+reboot &
 
 exit 0
-```
