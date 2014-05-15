@@ -4,9 +4,9 @@ Introduction
 
 junki (a.k.a. munki-fo-jamf) is a script and patching system / methodology for JAMF’s Casper suite. It borrows many ideas from the excellent munki, hence the homage.  
 
-Casper is the most complete and refined management platform for OSX and Apple devices. It’s ultra powerful and open-ended, the JSS is outstanding as is Self Service.app. However, it’s software deployment and patch management has some serious gaps. Casper Imaging is nice, but the general consensus amongst OSX admins is to move away image centric workflows.   
+Casper is the most complete and refined management platform for OSX and Apple devices. It’s ultra powerful and open-ended, the JSS is outstanding as is Self Service.app. However, it’s software deployment and patch management has some  gaps. Casper Imaging is great but the general consensus amongst OSX admins is to move away image centric workflows.   
 
-junki aims to work within Casper’s frameworks and augment the patch delivery. I suggest that you continue using Casper Imaging for initial software deployment (in fact I think Casper Imaging should be renamed to Casper Deploy - just don’t erase the disk in your workflow!), and then junki can help out in for post deployment patching.
+junki aims to work within Casper’s frameworks and augment software delivery post deployment. I suggest that you continue using Casper Imaging for initial software deployment (in fact I think Casper Imaging should be renamed to Casper Deploy - just don’t erase the disk in your workflow!), and then junki can help out for post deployment patching.
 junki can also leverage NetSUS / Reposado for dev / beta and production Apple Software catalogs (which I recommend doing if you aren’t!).   
 
 #### What does junki do that OOTB Casper doesn’t?

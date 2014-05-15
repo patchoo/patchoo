@@ -1,20 +1,20 @@
 junki
 =====
 
-https://github.com/munkiforjamf/junki
+[https://github.com/munkiforjamf/junki](https://github.com/munkiforjamf/junki)
 
 
 Junki somewhat emulates [munki](https://code.google.com/p/munki/) workflows and user experience for JAMF Software's [Casper Suite](http://www.jamfsoftware.com/products/casper-suite/).  
 
 **Casper** is the best all round management platform for all things Apple. It's incredibly powerful and the JSS has no competition, but the fact it started it's life a few years a go when Mac admins were using image based deployment workflows has meant there is a gap in functionality when it comes to post deployment patching. You can deploy patches via different built in triggers and policies but  there is no built-in GUI for user interaction, there is no cohesive way to deploy Apple and 3rd party updates and the user experience is lacking.
 
-**Munki** is the absolute best way to deploy and install software on many Macs at once. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than any other system. It provides a great end user GUI, unifies Apple and 3rd party software installations and allows installations to be deferred. Junki is munki inspired, and *hopefully* brings some of munki's greatness to Casper.
+**Munki** is the absolute best way to deploy and install software on many Macs at once. It does one thing, and it does it amazingly well. It can install software and ensure Macs are patched better than any other system. It provides a great end user GUI, unifies Apple and 3rd party software installations and allows installations to be deferred. Junki is munki inspired, and *hopefully* brings some of munki's greatness to (the already great) Casper.
 
 A lot of people have built different solutions on JAMFnation, but I think junki is the best and most complete way to deploy and patch your Macs *in the wild*. It provides a great workflow for admins and an excellent user experience.
 
 ### Why not just use munki? ###
 
-That's certainly an option, and many people do use munki and Casper. It does mean administering another tool and there is no formal training or certification track for munki, which is important to some organisations.
+That's certainly an option, and many people do use munki and Casper. It does mean administering another tool and there is no formal training or certification track for munki, which is important to some organisations. I hope some of these methods one day become part of Casper.
 
 ### Junki isn't just a script... ###
   
@@ -35,22 +35,26 @@ From a user experience perspective it;
 
 ### Demonstration ###
 
+##### User Prompt Screenshot #####
+
 ![User Prompt](https://raw.githubusercontent.com/munkiforjamf/junki/master/docs/images/prompt.png)
 
-[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/aeOOPHH3-NY/0.jpg)](http://www.youtube.com/watch?v=aeOOPHH3-NY)
+##### Overview Video #####
+	
+[![junkiDemo Video](http://img.youtube.com/vi/aeOOPHH3-NY/0.jpg)](http://www.youtube.com/watch?v=aeOOPHH3-NY)
 
-####[Demo jamf.log](https://raw.githubusercontent.com/munkiforjamf/junki/master/docs/jamf_junki.log.txt)
+##### Sample [jamf.log](https://github.com/munkiforjamf/junki/blob/master/docs/jamf_junki.log.txt) from the video 
 
 
 ### DISCLAIMER: USE AT YOUR OWN RISK! ###
 
-*The documentation is sparse, the code isn't pretty and it shouldn't be written in bash but it works! I am not a programmer, I'm just a lowly systems engineer that's kludged a few scripts, but I do think I have nailed the workflows and user experience. It probably should be re-written in Python once I am more comfortable. It's here on GitHub so you can help!*
+*The documentation needs work, the code isn't pretty and it shouldn't be written in bash but it (mostly) works! I am not a programmer, I'm just a lowly systems engineer that's kludged a few scripts in his time. I do think I have nailed the workflow and user experience though. It's here on GitHub so you can help make it great!*
 
 
 Requirements
 ------------
 * CocoaDialog 3.x
-* JAMF Casper (developed & tested on 9.22)
+* JAMF Casper (developed & tested on 9.22 - might work on 8.x)
 * http enabled dist points or JDS (policy within policy doesn't play nice with fileshare based CDPs)
 * OSX (10.6-10.9)
 * *A big bunch of Macs!*
@@ -59,7 +63,7 @@ Requirements
 Documentation
 -------------
      
-https://github.com/munkiforjamf/junki/blob/master/docs/_index.md 
+[https://github.com/munkiforjamf/junki/blob/master/docs/_index.md](https://github.com/munkiforjamf/junki/blob/master/docs/_index.md )
 
 
 Help out!
@@ -68,9 +72,10 @@ Help out!
 
 If you want to help in anyway please reach out via email or jump onto GitHub.
 
-If you find it useful and want to say thank you, link up on LinkedIn, tell me how and where you are using it, and write me a recommendation whilst you are there! http://au.linkedin.com/in/lachlanstewart  
+If you find it useful and want to say thank you, link up on LinkedIn, tell me how and where you are using it, and write me a recommendation whilst you are there! [http://au.linkedin.com/in/lachlanstewart](http://au.linkedin.com/in/lachlanstewart)
+
   
-#### Enjoy junki responsibly!####
+###Enjoy junki responsibly!###
 
 Lachlan.
 

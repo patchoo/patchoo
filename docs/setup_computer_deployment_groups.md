@@ -23,7 +23,6 @@ jssgroup[2]="junkiBeta"
 
 Create either static or smart groups corresponding to the names above. I use static groups and find some power users, or more daring staff that would like to beta test updates, but you could also use certain criteria in a smart group to scope your beta releases too.
 
-Like munki's catalogs, it's an open configuration and could be used other uses too. As of writing, computers should only be a member of one group, but this will likely change.
-
+Like munki's catalogs, it's an open configuration and could be used other uses too. As of writing, computers should only be a member of one group. The first group matched will be used.
 
 *Macs that aren't in any of the special groups are consider production Macs and only run the `update` trigger.*
