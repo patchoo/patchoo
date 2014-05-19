@@ -1,10 +1,10 @@
-Configuring junki.sh
---------------------
+Configuring patchoo.sh
+----------------------
 
 
 ### Basic Path Configuration   
   
-You will need to edit your 0junki.sh to suit your environment before you upload it into Casper Admin.   
+You will need to edit your _patchoo.sh to suit your environment before you upload it into Casper Admin.   
    
    
 `````
@@ -12,16 +12,16 @@ You will need to edit your 0junki.sh to suit your environment before you upload 
 # start configurable settings
 #
 
-name="junki"
+name="patchoo"
 version="0.982"
 
 # read only api user please!
 apiuser="apiuser"
 apipass="apipassword"
 
-datafolder="/Library/Application Support/junki"
+datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
-prefs="$datafolder/com.github.munkiforjamf.junki"
+prefs="$datafolder/com.github.patchoo"
 cdialog="/Applications/Utilities/cocoaDialog.app/Contents/MacOS/cocoaDialog"
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
@@ -32,13 +32,13 @@ selfsignedjsscert=true
 
 * Ensure you set your api user name and password that you [setup](setup_jss_api_access.md) previously.
 
-* You can leave the paths as default, but ensure that junki can find [CocoaDialog](install_cocoadialog.md) on the clients.
+* You can leave the paths as default, but ensure that patchoo can find [CocoaDialog](install_cocoadialog.md) on the clients.
 
 * Set selfsignedcert=true if you are using a self signed cert, or false if you have a trusted certificate on your JSS.
 
 ### Basic Mode Configuration
 
-These settings control how junki handles defers and blocking apps (eg. we shouldn't show update notifications when users are potentially presenting in Keynote)  
+These settings control how patchoo handles defers and blocking apps (eg. we shouldn't show update notifications when users are potentially presenting in Keynote)  
   
 **note**: this is needs to be improved upon - ideally we need to find if these apps are in fullscreen mode - todo
 
@@ -60,36 +60,36 @@ blockingapps=( "PowerPoint.app" "Keynote.app" )
   **note**: Changing the defaultthreshold has no affect once the script is run once as it's written to the preference file on the client. This will allow you to set different threshold on clients. In order to change the deferthreshold to '5' on a client, run directly, or via policy:
 
 ``````
-defaults write /Library/Application\ Support/junki/com.github.munkiforjamf.junki DeferThreshold -int 5
+defaults write /Library/Application\ Support/patchoo/com.github.patchoo DeferThreshold -int 5
 ``````
 * `blockingappmode=true` - enabled blockingappmode, the threshold will allow x number of prompts to be blocked before a prompt will come up. Due to the fact that blockingapp handling isn't idea, users that run blockingapps all the time can miss prompts indefinitely. The threshold addresses this until we can improve the blocking app check.
 * `blockingapps=( "array" )` - is a list of processes to check for. If found, no reminders or prompts will be displayed in order to mitigate cases where a prompt may be displayed during a presentation.
 
 ### Advanced Mode Configuration
 
-Please see [junki advanced](advanced_junki_overview.md) mode for configuration of these modes and arrays. They handle software release groups and reposado release forks.
+Please see [patchoo advanced](advanced_patchoo_overview.md) mode for configuration of these modes and arrays. They handle software release groups and reposado release forks.
 
 `````
 # this order will correspond to the updatetriggers and asurelease catalogs
-# eg. 	jssgroup[2]="junkiBeta"
+# eg. 	jssgroup[2]="patchooBeta"
 #  		updatetrigger[2]="update-beta"
 #		asureleasecatalog[2]="beta"
 #
 # index 0 is the production group and is assumed unless the client is a member of any other groups
 
 jssgroup[0]="----PRODUCTION----"
-jssgroup[1]="junkiDev"
-jssgroup[2]="junkiBeta"
+jssgroup[1]="patchooDev"
+jssgroup[2]="patchooBeta"
 	
 # these triggers are run based on group membership, index 0 is run after extra group.
-junkiswreleasemode=true
+patchooswreleasemode=true
 updatetrigger[0]="update"
 updatetrigger[1]="update-dev"
 updatetrigger[2]="update-beta"
 
-# if using junki asu release mode these will be appended to computer's SoftwareUpdate server catalogs as per reposado forks -- if not using asu release mode the computer's SwUpdate server will remain untouched.
+# if using patchoo asu release mode these will be appended to computer's SoftwareUpdate server catalogs as per reposado forks -- if not using asu release mode the computer's SwUpdate server will remain untouched.
 # eg. http://swupdate.your.domain:8088/content/catalogs/others/index-leopard.merged-1${asureleasecatalogs[i]}.sucatalog
-junkiasureleasemode=true
+patchooasureleasemode=true
 asureleasecatalog[0]="prod"
 asureleasecatalog[1]="dev"
 asureleasecatalog[2]="beta"
@@ -101,7 +101,7 @@ asureleasecatalog[2]="beta"
 
 You can change a lot of the prompts to suit your environment, or add trust to the prompts by adding your organisation name to the *msgnewsoftware* varliable, eg `msgnewsoftware="YourCompany has made the following new software available"`
 
-You can changes the logfile, by default junki logs into the */var/log/jamf.log*.
+You can changes the logfile, by default patchoo logs into the */var/log/jamf.log*.
 
 `````
 #

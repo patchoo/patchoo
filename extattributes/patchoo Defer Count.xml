@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <extensionAttribute>
-<displayName>junki Defer Count</displayName>
-<description>junki Defer Counter - 10 threshold.</description>
+<displayName>patchoo Defer Count</displayName>
+<description>patchoo Defer Counter - 10 threshold.</description>
 <dataType>number</dataType>
 <scriptContentsMac>#!/bin/bash&#13;
-prefs="/Library/Application Support/junki/com.github.munkiforjamf.junki"&#13;
+prefs="/Library/Application Support/patchoo/com.github.patchoo"&#13;
 key="DeferCount"&#13;
 &#13;
 result=$(defaults read "$prefs" "$key")&#13;

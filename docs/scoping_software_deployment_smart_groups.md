@@ -26,7 +26,7 @@ Breaking this down:
 
 * Any computer that has already cached `VLC-2.1.4.pkg` will not be a member of the group, hence the pkg will only cache once.
 * Any computer that has already had Casper install `VLC-2.1.4.pkg` will not be a member of the group, so the installation should only run once.
-* Any computer that has VLC, AND it is NOT version 2.1.4 will land in this group, on the junki update run, the pkg will cache for installation.
+* Any computer that has VLC, AND it is NOT version 2.1.4 will land in this group, on the patchoo update run, the pkg will cache for installation.
 
 It's recommended that you put the application version at the end of the smart group, as you will see from the example in the following chapters.
 

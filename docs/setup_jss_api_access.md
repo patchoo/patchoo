@@ -1,7 +1,7 @@
 Setup JSS API access
 --------------------
 
-The junki script requires read-only access to the JSS API in order to be able to perform some tasks. It reads package, group, network segement and software update information directly from the API.
+The patchoo script requires read-only access to the JSS API in order to be able to perform some tasks. It reads package, group, network segement and software update information directly from the API.
 
 ###Setup a read-only user in Casper admin like this
 

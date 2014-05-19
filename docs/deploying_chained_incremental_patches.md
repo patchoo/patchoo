@@ -3,9 +3,9 @@ Deploying Chained Incremental Patches
 
 Combo and "drag and drop" installations are easy, but what happens when our friends at Microsoft release Office Updaters that have pre-requisite versions and update installer pkgs that must be installed in order?
 
-junki to the rescue! The method is a little crude but it works rather well.
+patchoo to the rescue! The method is a little crude but it works rather well.
 
-If you supply a pre-requisite pkg, and a pre-requisite policy name, if junki.sh can't find a receipt for the pre-requisite pkgs, it will launch the policy directly, and so on.. the policies can be chained together via this method.
+If you supply a pre-requisite pkg, and a pre-requisite policy name, if patchoo.sh can't find a receipt for the pre-requisite pkgs, it will launch the policy directly, and so on.. the policies can be chained together via this method.
 
 It's not foolproof, if installations or updates were perform outside of Casper, it will attempt to update incorrectly, but generally the updater pkgs will contain scripts and fail out if a required version is not found.
 
@@ -25,7 +25,7 @@ Name: `updateMSOffice2011-14.3.9`
 
 You will notice in this smart group we've also set critera so that Macs that already have been patched to 14.4.1  (via other methods) aren't included either. Perhaps you have some users that have full admin access and can patch themselves. This is important **or Macs running 14.4.1 could have the 14.3.9 patch cached as well.** 
 
-You will also note that's it's not necessary to scope for each version. Scoping for your *highest* version is sufficient. Only the highest version is actually linked to a trigger (see the first screenshot). The rest of the policies are called internally by junki.sh.
+You will also note that's it's not necessary to scope for each version. Scoping for your *highest* version is sufficient. Only the highest version is actually linked to a trigger (see the first screenshot). The rest of the policies are called internally by patchoo.sh.
 
 Create a Policy as you did before
 
@@ -37,7 +37,7 @@ The **General** and **Packages** are the same as the [for standalone installers]
 
 ### Script
 
-You will note that in this case, we are telling junki that there is a pre-requsite installation of `MSOffice2011-14.3.8.pkg` in order to install `14.3.9`. If that's not found, junki will execute the policy `updateMSOffice2011-14.3.8` to install it.
+You will note that in this case, we are telling patchoo that there is a pre-requsite installation of `MSOffice2011-14.3.8.pkg` in order to install `14.3.9`. If that's not found, patchoo will execute the policy `updateMSOffice2011-14.3.8` to install it.
 
 ![office script](images/policy_office_script.png)
 
@@ -71,7 +71,7 @@ Simply change the name to `updateMSOffice2011-14.4.1`, and remove the  `14.3.9` 
 
 Next, edit your current production policy `updateMSOffice2011-14.3.9`.
 
-You need to remove the custom trigger, and leave it so it's enabled, but not set to ANY trigger. (remember: it still may be executed by Macs that require it, but only manually called by junki.sh.)
+You need to remove the custom trigger, and leave it so it's enabled, but not set to ANY trigger. (remember: it still may be executed by Macs that require it, but only manually called by patchoo.sh.)
 
 
 ![office 14.3.9 no trigger](images/policy_office_14.3.9_notrigger.png)
@@ -96,17 +96,17 @@ A Mac at version 14.2.5 during the update session would:
 
 1. run policy `updateMSOffice2011-14.4.1`
 2. `MSOffice2011-14.4.1.pkg` would cache
-3. junki.sh would see prerequisite `MSOffice2011-14.3.9.pkg` wasn't installed
-4. junki.sh would call policy `updateMSOffice2011-14.3.9`
+3. patchoo.sh would see prerequisite `MSOffice2011-14.3.9.pkg` wasn't installed
+4. patchoo.sh would call policy `updateMSOffice2011-14.3.9`
 5. policy `updateMSOffice2011-14.3.9` would cache `MSOffice2011-14.3.9.pkg`
-6. junki.sh would see prerequisite `MSOffice2011-14.3.8.pkg` wasn't installed
-7. junki.sh would call policy `updateMSOffice2011-14.3.8`
+6. patchoo.sh would see prerequisite `MSOffice2011-14.3.8.pkg` wasn't installed
+7. patchoo.sh would call policy `updateMSOffice2011-14.3.8`
 8. policy `updateMSOffice2011-14.3.8` would cache `MSOffice2011-14.3.8.pkg`
 9. .....
 
 You get the idea.
 
-On installation, junki will then install all patches in order and no matter what version the clients are currently, they will be brought up to your production version `14.4.1`.
+On installation, patchoo will then install all patches in order and no matter what version the clients are currently, they will be brought up to your production version `14.4.1`.
 
 
 

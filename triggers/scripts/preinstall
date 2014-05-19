@@ -8,7 +8,8 @@ targetLocation=$2
 targetVolume=$3
 
 shopt -s nullglob
-for launchdplist in $targetVolume/Library/LaunchDaemons/com.github.munkiforjamf.junki-trigger-*
+#for launchdplist in $targetVolume/Library/LaunchDaemons/com.github.munkiforjamf.junki-trigger-*
+for launchdplist in $targetVolume/Library/LaunchDaemons/com.github.patchoo-trigger-*
 do 
 	if [ "$targetVolume" == "/" ]
 	then

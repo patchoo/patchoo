@@ -1,21 +1,21 @@
 Setup Computer Deployment Groups
 --------------------------------
 
-### junki.sh Configuration
+### patchoo.sh Configuration
 
 The following codeblock configures the groups that you will be using in the JSS. You can change these at will, or add them. They must correspond with the updatetriggers and asureleasecatalogs in the the next arrays.
 
 ```
 # this order will correspond to the updatetriggers and asurelease catalogs
-# eg. 	jssgroup[2]="junkiBeta"
+# eg. 	jssgroup[2]="patchooBeta"
 #  		updatetrigger[2]="update-beta"
 #		asureleasecatalog[2]="beta"
 #
 # index 0 is the production group and is assumed unless the client is a member of any other groups
 
 jssgroup[0]="----PRODUCTION----"
-jssgroup[1]="junkiDev"
-jssgroup[2]="junkiBeta"
+jssgroup[1]="patchooDev"
+jssgroup[2]="patchooBeta"
 
 ```
 

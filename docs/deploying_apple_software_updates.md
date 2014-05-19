@@ -1,9 +1,9 @@
 Deploying Apple Software Updates
 ----------------------------------
 
-junki leverages existing Apple Software Update or Reposado (NetSUS) servers. 
+patchoo leverages existing Apple Software Update or Reposado (NetSUS) servers. 
 
-In Casper8, it was possible to just have a policy write your [CatalogURL](http://support.apple.com/kb/HT4069) based on network segment *WITHOUT* installing them at the same time. As of Casper 9, JAMF has removed the ability and greatly simplified, now it is only possible to set the CatalogURL *AND* install *all* updates. We don't want to install all updates, we want junki to handle that!
+In Casper8, it was possible to just have a policy write your [CatalogURL](http://support.apple.com/kb/HT4069) based on network segment *WITHOUT* installing them at the same time. As of Casper 9, JAMF has removed the ability and greatly simplified, now it is only possible to set the CatalogURL *AND* install *all* updates. We don't want to install all updates, we want patchoo to handle that!
 
 ![crappy asu](images/crappy_asu.png)
 
@@ -51,17 +51,17 @@ Create a policy to run it as follows:
 
 ___
 
-Junki Update Session
+patchoo Update Session
 --------------------
 
 
 
 
-1. **junkiPreUpdate** Policy fires the `update` trigger
-2. **junkiCheckASU** Policy runs `junki.sh --checkasu` which (if using advanced mode) will write a software deployment group CatalogURL (eg. junkiBeta members on 10.8 - `http://yourasuserver.domain:port/content/catalogs/others/index-mountainlion-lion-snowleopard-leopard.merged-1_beta.sucatalog`)
-3. `junki.sh --checkasu` downloads all require updates, and writes metadata to the support directory.
-4.  **junkiPromptToInstall** is run *last* on the update trigger, the user is prompted to install.
-5.  The user defers, or chooses install, and the user is logged out, pending installations are performed by **junkiPromptAndInstallAtLogout**.
+1. **patchooPreUpdate** Policy fires the `update` trigger
+2. **patchooCheckASU** Policy runs `patchoo.sh --checkasu` which (if using advanced mode) will write a software deployment group CatalogURL (eg. patchooBeta members on 10.8 - `http://yourasuserver.domain:port/content/catalogs/others/index-mountainlion-lion-snowleopard-leopard.merged-1_beta.sucatalog`)
+3. `patchoo.sh --checkasu` downloads all require updates, and writes metadata to the support directory.
+4.  **patchooPromptToInstall** is run *last* on the update trigger, the user is prompted to install.
+5.  The user defers, or chooses install, and the user is logged out, pending installations are performed by **patchooPromptAndInstallAtLogout**.
 
 
 

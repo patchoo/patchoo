@@ -1,6 +1,6 @@
 Install Triggers
 ----------------
-junki requires two additional triggers to work as documented. Depending on whether or not you use [advanced junki mode](advanced_junki_overview.md), you will use the following.
+patchoo requires two additional triggers to work as documented. Depending on whether or not you use [advanced patchoo mode](advanced_patchoo_overview.md), you will use the following.
 
 ### Basic ###
 
@@ -16,7 +16,7 @@ You can modify the triggers to suit your environment, but by default the update/
 
 This triggers are [here](triggers), you can use the ready made packages and deploy on all clients via policy, or modify and package them yourself.
 
-**If using the ready made packages, use ONLY the preudpate or the update pkg**. Both contain the every120 trigger. If using [advanced junki mode](advanced_junki_overview.md) ***recommended*** only install the preupdate trigger, as the preupdate policy will fire update triggers.
+**If using the ready made packages, use ONLY the preudpate or the update pkg**. Both contain the every120 trigger. If using [advanced patchoo mode](advanced_patchoo_overview.md) ***recommended*** only install the preupdate trigger, as the preupdate policy will fire update triggers.
 
 
 

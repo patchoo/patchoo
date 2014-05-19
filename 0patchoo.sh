@@ -1,35 +1,35 @@
 #!/bin/bash
 #
-# junki
-# =====
-# munki for jamf - a.k.a. junki
+# patchoo!
+# ========
+# Casper patching done right!
 #
-# https://github.com/munkiforjamf/junki
+# https://github.com/patchoo/patchoo
 #
-# junki somewhat emulates munki workflows and user experience for JAMF's Casper.
+# patchoo somewhat emulates munki workflows and user experience for JAMF's Casper.
 #
 
 # DEBUG STUFF
 #set -x	# DEBUG. Display commands and their arguments as they are executed
 #set -v	# VERBOSE. Display shell input lines as they are read.
 #set -n	# EVALUATE. Check syntax of the script but dont execute
-#debuglogfile=/DEBUGjunki-$(date "+%F_%H-%M-%S").log
+#debuglogfile=/DEBUGpatchoo-$(date "+%F_%H-%M-%S").log
 #exec > $debuglogfile 2>&1
 
 #
 # start configurable settings
 #
 
-name="junki"
+name="patchoo"
 version="0.982"
 
 # read only api user please!
 apiuser="apiuser"
 apipass="apipassword"
 
-datafolder="/Library/Application Support/junki"
+datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
-prefs="$datafolder/com.github.munkiforjamf.junki"
+prefs="$datafolder/com.github.patchoo"
 cdialog="/Applications/Utilities/cocoaDialog.app/Contents/MacOS/cocoaDialog"
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
@@ -48,25 +48,25 @@ defaultblockappthreshold="2" # if missed at lunch, then 2x2 hours later... shoul
 blockingapps=( "PowerPoint.app" "Keynote.app" )
 
 # this order will correspond to the updatetriggers and asurelease catalogs
-# eg. 	jssgroup[2]="junkiBeta"
+# eg. 	jssgroup[2]="patchooBeta"
 #  		updatetrigger[2]="update-beta"
 #		asureleasecatalog[2]="beta"
 #
 # index 0 is the production group and is assumed unless the client is a member of any other groups
 
 jssgroup[0]="----PRODUCTION----"
-jssgroup[1]="junkiDev"
-jssgroup[2]="junkiBeta"
+jssgroup[1]="patchooDev"
+jssgroup[2]="patchooBeta"
 	
 # these triggers are run based on group membership, index 0 is run after extra group.
-junkiswreleasemode=true
+patchooswreleasemode=true
 updatetrigger[0]="update"
 updatetrigger[1]="update-dev"
 updatetrigger[2]="update-beta"
 
-# if using junki asu release mode these will be appended to computer's SoftwareUpdate server catalogs as per reposado forks -- if not using asu release mode the computer's SwUpdate server will remain untouched.
+# if using patchoo asu release mode these will be appended to computer's SoftwareUpdate server catalogs as per reposado forks -- if not using asu release mode the computer's SwUpdate server will remain untouched.
 # eg. http://swupdate.your.domain:8088/content/catalogs/others/index-leopard.merged-1${asureleasecatalogs[i]}.sucatalog
-junkiasureleasemode=true
+patchooasureleasemode=true
 asureleasecatalog[0]="prod"
 asureleasecatalog[1]="dev"
 asureleasecatalog[2]="beta"
@@ -132,7 +132,7 @@ else
 	curlopts=""
 fi
 
-bootstrapagent="/Library/LaunchAgents/com.github.munkiforjamf.junki-bootstrap.plist"
+bootstrapagent="/Library/LaunchAgents/com.github.patchoo-bootstrap.plist"
 jssgroupfile="/tmp/$name-jssgroups.tmp"
 
 # set and read preferences
@@ -188,9 +188,9 @@ else
 fi
 
 # make tmp folder
-junkitmp="/tmp/junkitmp-$$" # i need to find you during debug
-mkdir "$junkitmp"
-#junkitmp="$(mktemp -d -t junki)" 
+patchootmp="/tmp/patchootmp-$$" # i need to find you during debug
+mkdir "$patchootmp"
+#patchootmp="$(mktemp -d -t patchoo)" 
 
 # create the data folder if it doesn't exist
 [ ! -d "$datafolder" ] && mkdir -p "$datafolder"
@@ -224,7 +224,7 @@ secho()
 		# if we are bootstrapping, we display over loginwindow fullscreen mode with the bootstrap helper... update the msg
 		if $bootstrapmode	
 		then
-			echo "$message" > /tmp/junki-loginmessage.tmp
+			echo "$message" > /tmp/patchoo-loginmessage.tmp
 		fi
 		echo "$name: $message"
 		echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: $message" >> "$logto/$log"
@@ -342,7 +342,7 @@ cachePkgs()
 	secho "jamf has cached $pkgname"
 	secho "$pkgdescription" 2 "Downloaded" "globe"
 	# flag that we need a recon
-	touch "$datafolder/.junki-recon-required"
+	touch "$datafolder/.patchoo-recon-required"
 
 	if [ "$prereqreceipt" != "" ]
 	then
@@ -364,13 +364,13 @@ cachePkgs()
 
 checkASU()
 {
-	if $junkiasureleasemode
+	if $patchooasureleasemode
 	then
 		getGroupMembership
 		setASUCatalogURL
 	fi
 
-	swupdateout="$junkitmp/swupdateout-$RANDOM.tmp"
+	swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
 	secho "checking for apple software updates..."
 	softwareupdate -la > "$swupdateout"
 	# check if there are any updates
@@ -393,7 +393,7 @@ checkASU()
 				echo "${asudescriptarray[$i]}" > "$pkgdatafolder/$asupkg.asuinfo"
 				secho "${asudescriptarray[$i]}" 2 "Downloaded" "globe"
 				# flag that we need a recon
-				touch "$datafolder/.junki-recon-required"
+				touch "$datafolder/.patchoo-recon-required"
 			else
 				secho "$asupkg already downloaded."
 			fi
@@ -414,7 +414,7 @@ checkASU()
 
 setASUCatalogURL()
 {
-	# in junkirepsado mode junki takes care of re-writing client catalog urls so you can have dev/beta/prod catalogs based on jss group membership
+	# in patchoorepsado mode patchoo takes care of re-writing client catalog urls so you can have dev/beta/prod catalogs based on jss group membership
 	# you set your catalogURL / swupdate server as you usually do in Casper, and it will re-write OS and branch specific URLs based on the local CatalogURL.
 	# it assumes that you have turned off updates via other mechanisms 
 	currentswupdurl=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate CatalogURL)
@@ -458,7 +458,7 @@ buildUpdateLists()
 	# don't expand a nullglob (if there are no matching *.xxx)
 	shopt -s nullglob
 	# casper pkgs
-	casppkginfo="$junkitmp/casppkginfo-$RANDOM.tmp"
+	casppkginfo="$patchootmp/casppkginfo-$RANDOM.tmp"
 	for infofile in "$pkgdatafolder/"*.caspinfo
 	do
 		# parse the priority from casper xml
@@ -476,7 +476,7 @@ buildUpdateLists()
 		secho "osupgrade is in casper, skipping apple software updates"
 	else
 		# asu pkgs
-		asupkginfo="$junkitmp/asupkginfo-$RANDOM.tmp"
+		asupkginfo="$patchootmp/asupkginfo-$RANDOM.tmp"
 		for infofile in "$pkgdatafolder/"*.asuinfo
 		do
 			# check for SMC, EFI and Firmware updates, flag if so
@@ -629,7 +629,7 @@ installSoftware()
 					
 					# spawn the update process, and direct output to tmpfile for parsing (we probably should use a named pipe here... future...)
 					swupdcmd="softwareupdate -v -i $asupkg"
-					swupdateout="$junkitmp/swupdateout-$RANDOM.tmp"
+					swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
 					softwareupdate -v -i "$asupkg" > $swupdateout &
 					# wait for the software update to finish, parse output of softwareupdate
 					while [ "$(checkProcess "$swupdcmd")" == "yes" ]
@@ -655,7 +655,7 @@ installSoftware()
 	if [ -f "$pkgdatafolder/.restart-required" ]
 	then
 		secho "restart is required by pkg"
-		touch /tmp/.junki-restart
+		touch /tmp/.patchoo-restart
 	fi
 
 	# if there was an OS upgrade installed, flush out apple updates from system.
@@ -663,7 +663,7 @@ installSoftware()
 	then
 		secho "flushing apple software updates..."
 		rm -R /Library/Updates/*
-		touch /tmp/.junki-restart
+		touch /tmp/.patchoo-restart
 	fi
 
 	# reset defer counters and flush pkgdata
@@ -671,7 +671,7 @@ installSoftware()
 	defaults write "$prefs" InstallsAvail -string "No"
 	installsavail="No"
 	rm -R "$pkgdatafolder"
-	rm /tmp/.junki-install
+	rm /tmp/.patchoo-install
 }
 
 promptInstall()
@@ -730,15 +730,15 @@ promptInstall()
 			case $answer in			
 				"Install and Restart..." )
 					secho "user selected install and restart"
-					touch /tmp/.junki-install
-					touch /tmp/.junki-restart
+					touch /tmp/.patchoo-install
+					touch /tmp/.patchoo-restart
 					preInstallWarnings
 					return
 				;;				
 				"Install and Shutdown..." )
 					secho "user selected install and shutdown"
-					touch /tmp/.junki-install
-					touch /tmp/.junki-shutdown
+					touch /tmp/.patchoo-install
+					touch /tmp/.patchoo-shutdown
 					preInstallWarnings
 					return
 				;;
@@ -749,8 +749,8 @@ promptInstall()
 
 				"timeout" )
 					secho "timeout... will install and shutdown, the user is probably going home"
-					touch /tmp/.junki-install
-					touch /tmp/.junki-shutdown
+					touch /tmp/.patchoo-install
+					touch /tmp/.patchoo-shutdown
 					preInstallWarnings
 					return
 				;;
@@ -835,7 +835,7 @@ promptInstall()
 			# this flags for install, and logs out the user, logout policy picks up the install flag and does installations.
 			secho "user selected install and logout..."
 			# we need to logout the user
-			touch /tmp/.junki-install
+			touch /tmp/.patchoo-install
 			preInstallWarnings
 			logoutUser
 		;;
@@ -873,7 +873,7 @@ promptInstall()
 	esac
 	
 	# if we've cached new updates, recon the mac so it falls into the correct smart groups
-	[ -f "$datafolder/.junki-recon-required" ] && jamfRecon
+	[ -f "$datafolder/.patchoo-recon-required" ] && jamfRecon
 }
 
 addWarnings()
@@ -895,14 +895,14 @@ preInstallWarnings()
 	if [ -f "$pkgdatafolder/.os-upgrade" ]
 	then
 		displayDialog "$msgosupgradewarning" "OS Upgrade" "IMPORTANT NOTICE!" "caution" "I Understand... Install and Restart"
-		touch /tmp/.junki-restart-forced
+		touch /tmp/.patchoo-restart-forced
 		return # we don't want other warnings
 	fi	
 
 	if [ -f "$pkgdatafolder/.fw-update" ]
 	then
 		displayDialog "$msgfirmwarewarning" "Firmware Update Warning" "IMPORTANT NOTICE!" "stop" "I Understand... Install and Restart"
-		touch /tmp/.junki-restart-forced
+		touch /tmp/.patchoo-restart-forced
 	fi
 }
 
@@ -936,7 +936,7 @@ logoutUser()
 
 processLogout()
 {
-	if [ -f /tmp/.junki-install ]
+	if [ -f /tmp/.patchoo-install ]
 	then
 		#  we are hitting this on log out and the user has selected to install
 		installSoftware
@@ -946,7 +946,7 @@ processLogout()
 		then
 			# prompt user
 			promptInstall --logoutinstallsavail
-			if [ -f /tmp/.junki-install ]
+			if [ -f /tmp/.patchoo-install ]
 			then
 				# user chose to install updates
 				preInstallWarnings
@@ -963,35 +963,35 @@ processLogout()
 	fi
 	
 	# process a restart or shutdown
-	if [ -f /tmp/.junki-restart ] || [ -f /tmp/.junki-shutdown ]
+	if [ -f /tmp/.patchoo-restart ] || [ -f /tmp/.patchoo-shutdown ]
 	then
 		# run on recon on reboot
 		secho "flagged for a post boot recon"
-		touch "$datafolder/.junki-recon-required"
+		touch "$datafolder/.patchoo-recon-required"
 	else
 		# otherwise no restart required, we can do it in the background whilst user logs back in
 		jamfRecon &
 	fi
 	
-	if [ -f /tmp/.junki-restart-forced ]
+	if [ -f /tmp/.patchoo-restart-forced ]
 	then
-		touch /tmp/.junki-restart # forced restart to trump shutdown, need restarts for FW and OS Upgrades
-		[ -f /tmp/.junki-shutdown ] && rm /tmp/.junki-shutdown # we don't want fwupdates to install and shutdown
-		rm /tmp/.junki-restart-forced
+		touch /tmp/.patchoo-restart # forced restart to trump shutdown, need restarts for FW and OS Upgrades
+		[ -f /tmp/.patchoo-shutdown ] && rm /tmp/.patchoo-shutdown # we don't want fwupdates to install and shutdown
+		rm /tmp/.patchoo-restart-forced
 	fi
 
-	if [ -f /tmp/.junki-shutdown ] 
+	if [ -f /tmp/.patchoo-shutdown ] 
 	then
 		secho "shutting down now!"
-		[ -f /tmp/.junki-restart ] && rm /tmp/.junki-restart # remove this, shutdown trumps restart request by a pkg
-		rm /tmp/.junki-shutdown
+		[ -f /tmp/.patchoo-restart ] && rm /tmp/.patchoo-restart # remove this, shutdown trumps restart request by a pkg
+		rm /tmp/.patchoo-shutdown
 		shutdown -h now &
 	fi
 
-	if [ -f /tmp/.junki-restart ]
+	if [ -f /tmp/.patchoo-restart ]
 	then
 		secho "restarting now!"
-		rm /tmp/.junki-restart
+		rm /tmp/.patchoo-restart
 		shutdown -r now &
 	fi
 }
@@ -999,7 +999,7 @@ processLogout()
 jamfPolicyUpdate()
 {
 	# if we are using the swrelease triggers, get groups and run the trigger
-	if $junkiswreleasemode
+	if $patchooswreleasemode
 	then
 		getGroupMembership
 		if [ "$groupid" != "0" ]
@@ -1097,7 +1097,7 @@ remindInstall()
 startup()
 {
 	# post reboot after install, recon on startup.
-	[ -f "$datafolder/.junki-recon-required" ] && jamfRecon
+	[ -f "$datafolder/.patchoo-recon-required" ] && jamfRecon
 }
 
 bootstrapUpdates()
@@ -1110,10 +1110,10 @@ bootstrapUpdates()
 	while [ "$installsavail" == "Yes" ]
 	do
 		installSoftware
-		if [ -f /tmp/.junki-restart ]
+		if [ -f /tmp/.patchoo-restart ]
 		then
 			secho "restarting now!"
-			rm /tmp/.junki-restart
+			rm /tmp/.patchoo-restart
 			reboot &
 			return
 		fi
@@ -1128,7 +1128,7 @@ bootstrapUpdates()
 	secho "All updates installed, bootstrap complete!"
 	sleep 8
 	rm "$bootstrapagent"
-	rm /Library/Scripts/junki.sh
+	rm /Library/Scripts/patchoo.sh
 	killall jamfHelper
 }
 
@@ -1141,14 +1141,14 @@ cat > "$bootstrapagent" << EOF
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.github.munkiforjamf.junki-bootstrap</string>
+	<string>com.github.patchoo-bootstrap</string>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>LimitLoadToSessionType</key>
 	<string>LoginWindow</string>
 	<key>ProgramArguments</key>
 	<array>
-        <string>/Library/Scripts/junki.sh</string>
+        <string>/Library/Scripts/patchoo.sh</string>
         <string>''</string>
         <string>''</string>
         <string>''</string>
@@ -1162,9 +1162,9 @@ EOF
 	chown root:wheel "$bootstrapagent"
 	chmod 644 "$bootstrapagent"
 	# copy the script to local drive
-	cp "$0" /Library/Scripts/junki.sh
-	chown root:wheel /Library/Scripts/junki.sh
-	chmod 770 /Library/Scripts/junki.sh
+	cp "$0" /Library/Scripts/patchoo.sh
+	chown root:wheel /Library/Scripts/patchoo.sh
+	chmod 770 /Library/Scripts/patchoo.sh
 	# unset any loginwindow autologin
 	defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser ""
 	secho "bootstrap setup done, you need to restart"
@@ -1172,14 +1172,14 @@ EOF
 
 bootstrapHelper()
 {
-	# junki bootstrap helper
+	# patchoo bootstrap helper
 	#
 	jamf policy -trigger bootstrap
 	# message for loginwindow
-	echo "running a recon..." > /tmp/junki-loginmessage.tmp
+	echo "running a recon..." > /tmp/patchoo-loginmessage.tmp
 	while [ -f "$bootstrapagent" ]	# whilst the agent exists, we are in bootstrap mode
 	do
-		newmessage="$(cat /tmp/junki-loginmessage.tmp)"
+		newmessage="$(cat /tmp/patchoo-loginmessage.tmp)"
 		if [ "$message" != "$newmessage" ]
 		then
 			message="$newmessage"
@@ -1192,7 +1192,7 @@ bootstrapHelper()
 			sleep 2
 		fi
 	done
-	rm /tmp/junki-loginmessage.tmp
+	rm /tmp/patchoo-loginmessage.tmp
 }
 
 jamfRecon()
@@ -1205,13 +1205,13 @@ jamfRecon()
 		jamf recon
 	fi		
 	# if there is flag, remove it
-	[ -f "$datafolder/.junki-recon-required" ] && rm "$datafolder/.junki-recon-required"
+	[ -f "$datafolder/.patchoo-recon-required" ] && rm "$datafolder/.patchoo-recon-required"
 	secho "recon finished"
 }
 
 cleanUp()
 {
-	rm -R "$junkitmp"
+	rm -R "$patchootmp"
 	[ -f "$jssgroupfile" ] && rm "$jssgroupfile" 	# cached group membership
 	[ "$spawned" == "--spawned" ] && rm $0 	#if we are spawned, eat ourself.
 }
@@ -1262,7 +1262,7 @@ case $mode in
 	;;
 
 	"--preupdate" )
-		# when using junkiAdvanceMode (tm) this is used to launch the update triggers
+		# when using patchooAdvanceMode (tm) this is used to launch the update triggers
 		preUpdate
 	;;
 

@@ -8,7 +8,7 @@ a script like this should do it... but I am looking into issues around waiting f
 ```
 #!/bin/bash
 #
-# this script will setup junki bootstrap, it needs to wait for the the mac to be enrolled and the first run scripts to finish
+# this script will setup patchoo bootstrap, it needs to wait for the the mac to be enrolled and the first run scripts to finish
 
 #if [ "$1" != "--spawned" ]
 #then

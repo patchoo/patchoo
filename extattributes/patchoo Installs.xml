@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <extensionAttribute>
-<displayName>junki Installs</displayName>
-<description>junki Installs cached and available.</description>
+<displayName>patchoo Installs</displayName>
+<description>patchoo Installs cached and available.</description>
 <dataType>string</dataType>
 <scriptContentsMac>#!/bin/bash&#13;
-prefs="/Library/Application Support/junki/com.github.munkiforjamf.junki"&#13;
+prefs="/Library/Application Support/patchoo/com.github.patchoo"&#13;
 key="InstallsAvail"&#13;
 &#13;
 result=$(defaults read "$prefs" "$key")&#13;

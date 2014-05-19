@@ -3,18 +3,23 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.github.munkiforjamf.junki-trigger-every120</string>
+	<string>com.github.patchoo-trigger-preupdate</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/sbin/jamf</string>
 		<string>policy</string>
 		<string>-trigger</string>
-		<string>every120</string>
+		<string>preupdate</string>
 		<string>-randomDelaySeconds</string>
-		<string>300</string>
+		<string>1800</string>
 	</array>
-	<key>StartInterval</key>
-	<integer>7200</integer>
+	<key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>12</integer>
+        <key>Minute</key>
+        <integer>00</integer>
+    </dict>
 	<key>UserName</key>
 	<string>root</string>
 </dict>

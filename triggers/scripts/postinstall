@@ -11,7 +11,7 @@ shopt -s nullglob
 # if it's on / load them
 if [ "$targetVolume" == "/" ]
 then
-	for launchdplist in /Library/LaunchDaemons/com.github.munkiforjamf.junki-trigger-*
+	for launchdplist in /Library/LaunchDaemons/com.github.patchoo-trigger-*
 	do 
 		echo "load launchdaemon $launchdplist ..."
 		launchctl load $launchdplist

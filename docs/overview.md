@@ -1,13 +1,13 @@
 Overview
 --------
 
-### Junki "update" overview  
+### patchoo "update" overview  
    
 The update process is triggered via a custom trigger (default at midday).    
 
-![junki Update Overview](images/overview_junki_update.png)
+![patchoo Update Overview](images/overview_patchoo_update.png)
 
-### Junki "install" overview
+### patchoo "install" overview
 
 
 **INSERT DIAGRAM HERE**

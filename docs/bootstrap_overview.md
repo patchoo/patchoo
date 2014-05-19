@@ -7,7 +7,7 @@ It basically:
 
 * Locks the loginwindow and provides UI feedback via jamfhelper fullscreen.
 	* Runs a recon (to ensure Macs are in the correct deployment groups)
-	* Runs junki -trigger preupdate
+	* Runs patchoo -trigger preupdate
 	* update / cache process runs (3rd party and apple updates cached)
 	* all updates are installed
 		* if reboot required, Mac is rebooted.. loop back to start
