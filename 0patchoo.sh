@@ -544,8 +544,8 @@ installCasperPkg()
 	# check if a reboot is required by casper package, flag if it is.
 	[ "$(cat "${infofile}.xml" | grep "<reboot_required>true</reboot_required>")" != "" ] && touch "$pkgdatafolder/.restart-required" 
 	# check for fut and feu
-	[ "$(cat "${infofile}.xml" | grep "<fill_user_template>true</fill_user_template>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
-	[ "$(cat "${infofile}.xml" | grep "<fill_existing_users>true</fill_existing_users>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
+	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<fut>true</fut>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
+	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<feu>true</feu>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
 	secho "jamf is installing $casppkg"
 	jamf install $jamfinstallopts -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
 	# (insert error checking)
