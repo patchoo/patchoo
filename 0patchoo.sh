@@ -141,6 +141,13 @@ jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url")
 
 daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
 
+
+# create the data folder if it doesn't exist
+[ ! -d "$datafolder" ] && mkdir -p "$datafolder"
+[ ! -d "$pkgdatafolder" ] && mkdir -p "$pkgdatafolder"
+
+# check and write installs avail
+
 installsavail=$(defaults read "$prefs" InstallsAvail)
 if [ "$?" != "0" ]
 then
@@ -191,10 +198,6 @@ fi
 patchootmp="/tmp/patchootmp-$$" # i need to find you during debug
 mkdir "$patchootmp"
 #patchootmp="$(mktemp -d -t patchoo)" 
-
-# create the data folder if it doesn't exist
-[ ! -d "$datafolder" ] && mkdir -p "$datafolder"
-[ ! -d "$pkgdatafolder" ] && mkdir -p "$pkgdatafolder"
 
 #
 # common functions 
