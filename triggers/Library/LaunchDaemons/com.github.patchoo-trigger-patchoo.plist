@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.github.patchoo-trigger-update</string>
+	<string>com.github.patchoo-trigger-patchoo</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/sbin/jamf</string>
 		<string>policy</string>
 		<string>-trigger</string>
-		<string>update</string>
+		<string>patchoo</string>
 		<string>-randomDelaySeconds</string>
 		<string>1800</string>
 	</array>
