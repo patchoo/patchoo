@@ -14,12 +14,12 @@ Set the Parameter Labels as follows (don't worry, we'll explain what these are l
 
 Parameters  | Value
 ----------- | ------------- 
-Parameter 4 | mode ( --cache / --promptinstall )
-Parameter 5 | (opt. --forceinstall / --osupgrade) 
-Parameter 6 | pkg descrip (--cache) 
-Parameter 7 | pkg filename (--cache)
-Parameter 8 | pre-req receipt  (opt.  --cache) 
-Parameter 9 | pre-req policy (opt.  --cache) 
+Parameter 4 | mode (--cache / --promptinstall)
+Parameter 5 | prereq. receipt (opt. --cache) 
+Parameter 6 | prereq. policy (opt. --cache) 
+Parameter 7 | (opt. --osupgrade)
+Parameter 8 | (unused) 
+Parameter 9 | (unused) 
 Parameter 10| (unused) 
 Parameter 11| (unused)
  

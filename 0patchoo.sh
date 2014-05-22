@@ -118,12 +118,10 @@ fi
 
 # command line paramaters
 mode="$4"
-option="$5"
-pkgdescription="$6"
-pkgname="$7"
-prereqreceipt="$8"
-prereqpolicy="$(echo $9 | sed -e 's/ /\+/g')" # change out " " for +
-spawned="$1"
+prereqreceipt="$5"
+prereqpolicy="$(echo $6 | sed -e 's/ /\+/g')" # change out " " for +
+option="$7"
+spawned="$1" # used internally
 
 if $selfsignedjsscert
 then

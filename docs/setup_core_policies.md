@@ -3,6 +3,7 @@ Setup Core Policies
 The following policies are the core of patchoo. They drive the caching, Apple Software Update, installation, logout, user prompts and installation reminders.
 
 It's recommended that you create a [category](setup_categories.md) to house them within your JSS.
+### Core
 
 * [patchooStart](#patchooStart)
 * [patchooCheckASU](#patchooCheckASU)
@@ -10,6 +11,12 @@ It's recommended that you create a [category](setup_categories.md) to house them
 * [patchooPromptAndInstallAtLogout](#patchooPromptAndInstallAtLogout)
 * [patchooStartup](#patchooStartup)
 * [patchooUpdateRemindPrompt](#patchooUpdateRemindPrompt)
+
+___
+### Self Service
+* [Check for New Software](#ssCheck)
+* [Install New Software](#ssInstall)
+
 
 
 ___
