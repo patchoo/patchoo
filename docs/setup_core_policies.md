@@ -4,7 +4,7 @@ The following policies are the core of patchoo. They drive the caching, Apple So
 
 It's recommended that you create a [category](setup_categories.md) to house them within your JSS.
 
-* [patchooPreUpdate](#patchooPreUpdate)
+* [patchooStart](#patchooStart)
 * [patchooCheckASU](#patchooCheckASU)
 * [patchooPromptToInstall](#patchooPromptToInstall)
 * [patchooPromptAndInstallAtLogout](#patchooPromptAndInstallAtLogout)
@@ -13,11 +13,10 @@ It's recommended that you create a [category](setup_categories.md) to house them
 
 
 ___
-### [000-patchooPreUpdate](id:patchooPreUpdate)
+### [000-patchooStart](id:patchooStart)
 
-*optional for [patchoo advanced mode](advanced_patchoo_overview.md)*  
 
-If using [patchoo advanced mode](advanced_patchoo_overview.md) you can utilise the preudpate policy, fired by the [preudpate trigger](install_triggers.md). By using a preupdate policy, you can enforce limitations (network segments, time of day etc) so updates are not triggers on certain WAN or VPN connections.
+The patchooStart policy fired by the [patchoo trigger](install_triggers.md). By using a preupdate policy, you can enforce limitations (network segments, time of day etc) so updates are not triggers on certain WAN or VPN connections.
 
 The preupdate policy queries the [JSS via the api](setup_jss_api_access.md) and checks if the client is a member of the any of the [deployment groups](setup_computer_deployment_groups.md) (*dev / beta / production / etc*). If found it fires the relevant trigger (*eg. update-beta*) before firing the default *update* trigger.
 
@@ -25,10 +24,10 @@ Using this method allows us to allocate different software installations based o
 
 #### General tab
 
-* Name: `000-patchoo-PreUpdate`
+* Name: `000-patchooStart`
 * Enabled: `true`
 * Category: `0-patchoo-z-core`
-* Trigger: `preudpate`
+* Trigger: `patchoo`
 * Execution: `ongoing`
 
 ![preudpate general](images/policy_preudpate_general.png)
@@ -37,23 +36,23 @@ Using this method allows us to allocate different software installations based o
 
 * Script: `0patchoo.sh`
 * Priority: `before`
-* Mode (1st param): `--preupdate`
+* Mode (1st param): `--patchoostart`
 
 ![preupdate script](images/policy_preudpate_script.png)
 
 #### Scope / Targets tab
 
+Since the patchooStart policy calls the rest of the update chain, you can perform all of your scope limitations to this policy, rather than scoping each and every software deployment policy. Clever!
+
+
 ![preupdate scope](images/policy_preudpate_scope.png)
 
-You can limit computers via group here any way you desire, or you can ensure that only clients that are patchoo capable (ie. have CocoaDialog installed).
-
-* Computer Group: `allpatchooClients`
+* Computer Group: `allPatchooClients`
 
 #### Scope / Limitations
 
 You can limit your patchoo sessions via Network Segment, or times here. This can prevent your clients from attempting to pull updates whilst on the VPN or on a poor WiFi / WAN segment. In this example screenshot we add all of our high speed connects, and ensure that clients on the VPN IP range don't fire an update session.
 
-Since the preupdate policy calls the rest of the update chain, you can perform all of your scope limitations to this policy, rather than scoping each and every software deployment policy. Clever!
 
 ![preupdate limitations](images/policy_preudpate_limitations.png)
      
@@ -86,7 +85,7 @@ patchooCheckASU calls `0patchoo.sh --checkasu` which does the following:
 
 #### Scope tab
 
-* Computer Group: `allpatchooClients`
+* Target Computers `All Computers`
 
 ___
 ### [zzz-patchooPromptToInstall](id:patchooPromptToInstall)
@@ -117,7 +116,7 @@ As it MUST be called at the end of an update chain, it's important that's named 
 
 #### Scope tab
 
-* Computer Group: `allpatchooClients`
+* Target Computers `All Computers`
 
 
 ___
@@ -148,7 +147,7 @@ If the user is logging out and there are available updates, this policy also pro
 
 #### Scope tab
 
-* Computer Group: `allpatchooClients`
+* Target Computers `All Computers`
 
 ___
 ### [zzz-patchooStartup](id:patchooStartup)
@@ -176,7 +175,7 @@ patchooStartup is responsible for any startup housekeeping. Currently this is li
 
 #### Scope tab
 
-* Computer Group: `allpatchooClients`
+* Target Computers `All Computers`
 
 ___
 ### [zzz-patchooUpdateRemindPrompt](id:patchooUpdateRemindPrompt)

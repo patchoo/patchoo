@@ -4,7 +4,7 @@ Configuring patchoo.sh
 
 ### Basic Path Configuration   
   
-You will need to edit your _patchoo.sh to suit your environment before you upload it into Casper Admin.   
+You will need to edit your 0patchoo.sh to suit your environment before you upload it into Casper Admin.   
    
    
 `````

@@ -21,7 +21,7 @@
 #
 
 name="patchoo"
-version="0.982"
+version="0.99"
 
 # read only api user please!
 apiuser="apiuser"
@@ -331,38 +331,56 @@ spawnScript()
 #
 
 
-cachePkgs()
+cachePkg()
 {
 	# run after a pkg is cached in a policy
 	#	- checks for prereqs and calls policies if receipts not found
-	#	- gets pkg data from jss api and gives pkg friendly name in the gui by writing some metadata to the pkgdatafolder
+	#	- gets pkg data from jss api and gives pkg friendly name in the gui
 	#
-	echo "$pkgdescription" > "$pkgdatafolder/$pkgname.caspinfo"
-	# get pkgdata from the jss api
-	curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/packages/name/$(echo $pkgname | sed -e 's/ /\+/g') -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
-	# if it's flagged as an OS Upgrade (using createOSXInstallPkg), add that to pkg (very crudely)
-	[ "$option" == "--osupgrade" ] && touch "$pkgdatafolder/$pkgname.caspinfo.osupgrade"
-	secho "jamf has cached $pkgname"
-	secho "$pkgdescription" 2 "Downloaded" "globe"
-	# flag that we need a recon
-	touch "$datafolder/.patchoo-recon-required"
-
-	if [ "$prereqreceipt" != "" ]
+	
+	# find the latest addition to the Waiting Room
+	pkgname=$(ls -tr "/Library/Application Support/JAMF/Waiting Room/" | tail -n 1 | grep -v .cache.xml)
+	if [ ! -f "$pkgdatafolder/$pkgname.caspinfo" ]
 	then
-		# we need to check for a prereq casper receipt
-		if [ ! -f "/Library/Application Support/JAMF/Receipts/$prereqreceipt" ]
+		# get pkgdata from the jss api
+		curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/packages/name/$(echo $pkgname | sed -e 's/ /\+/g') -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		# (error checking)
+		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
+		if [ "$pkgdescription" != "<info />" ]
 		then
-			# the receipt wasn't found
-			# query the JSS for the prereqpolicy
-			secho "$prereqreceipt is required and NOT found"
-			secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-			prereqpolicyid=$(curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
-			# (error checking)
-			# let's run the preq policy via id
-			# this is how we chain incremental updates
-			jamf policy -id $prereqpolicyid
+			echo "$pkgdescription" > "$pkgdatafolder/$pkgname.caspinfo"
+		else
+			# if it's blank, use the pkgname
+			echo "$pkgname" "$pkgdatafolder/$pkgname.caspinfo"
 		fi
+
+		# if it's flagged as an OS Upgrade (using createOSXInstallPkg), add osupgrade flag
+		[ "$option" == "--osupgrade" ] && touch "$pkgdatafolder/$pkgname.caspinfo.osupgrade"
+		secho "jamf has cached $pkgname"
+		secho "$pkgdescription" 2 "Downloaded" "globe"
+		# flag that we need a recon
+		touch "$datafolder/.patchoo-recon-required"
+
+		if [ "$prereqreceipt" != "" ]
+		then
+			# we need to check for a prereq casper receipt
+			if [ ! -f "/Library/Application Support/JAMF/Receipts/$prereqreceipt" ]
+			then
+				# the receipt wasn't found
+				# query the JSS for the prereqpolicy
+				secho "$prereqreceipt is required and NOT found"
+				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
+				prereqpolicyid=$(curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				# (error checking)
+				# let's run the preq policy via id
+				# this is how we chain incremental updates
+				jamf policy -id $prereqpolicyid
+			fi
+		fi
+	else
+		secho "i didn't find a new pkg in the waiting room. :("
 	fi
+
 }
 
 checkASU()
@@ -1022,8 +1040,11 @@ getGroupMembership()
 	groupid=0
 	macaddress=$(networksetup -getmacaddress en0 | awk '{ print $3 }' | sed 's/:/./g')
 	# jss group file, we cache this in a central location so we can minimise number of hits on the jss for an update session.
-	[ ! -f "$jssgroupfile" ] && curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/computers/macaddress/$macaddress | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
-
+	if [ ! -f "$jssgroupfile" ]
+	then
+		secho "getting computer group membership ..."
+		curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/computers/macaddress/$macaddress | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
+	fi
 	for checkgroup in ${jssgroup[@]}
 	do
 		# we don't check against the production
@@ -1038,9 +1059,9 @@ getGroupMembership()
 	groupid=0
 }
 
-preUpdate()
+patchooStart()
 {
-	secho "performing preupdate checks ..."
+	secho "starting triggered patchoo run!"
 	jamfPolicyUpdate
 }
 
@@ -1228,7 +1249,7 @@ case $mode in
 	
 	"--cache" )
 		# run after caching package in policy to add metadata.
-		cachePkgs
+		cachePkg
 	;;
 
 	"--checkasu" )
@@ -1264,9 +1285,9 @@ case $mode in
 		processLogout
 	;;
 
-	"--preupdate" )
-		# when using patchooAdvanceMode (tm) this is used to launch the update triggers
-		preUpdate
+	"--patchoostart" )
+		# this starts the patchoo update process, triggered by -trigger patchoo
+		patchooStart
 	;;
 
 	"--bootstrap" )
@@ -1291,4 +1312,4 @@ esac
 # tidy up any leftovers
 cleanUp
 
-exit
+exit 0
