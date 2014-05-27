@@ -1,0 +1,12 @@
+#!/bin/bash
+prefs="/Library/Application Support/patchoo/com.github.patchoo"
+key="DeferCount"
+
+result=$(defaults read "$prefs" "$key")
+
+if [ "$?" == "0" ]
+then
+    echo "<result>$result</result>"
+else
+    echo "<result>0</result>"
+fi

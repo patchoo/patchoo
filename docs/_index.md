@@ -15,11 +15,11 @@ Documentation
 	* [Setup JSS API access](setup_jss_api_access.md)
 	* [Configuring patchoo.sh](configuring_patchoo.sh.md)
 	* [Install patchoo.sh](install_patchoo.sh.md)
-	* [Setup Categories](setup_categories.md) -x
+	* [Setup Categories](setup_categories.md) - x
 	* [Install CocoaDialog](install_cocoadialog.md)
 	* [Install triggers](install_triggers.md)
 	* [Setup Extension Attributes](setup_extension_attributes.md)
-	* [Setup Smart Groups](setup_smart_groups.md) -x
+	* [Setup Smart Groups](setup_smart_groups.md)
 	* [Setup Core Policies](setup_core_policies.md) -x
 * [Deploying Apple Software Updates](deploying_apple_software_updates.md)
 * [Deploying Software via Casper Policies](deploying_software_via_policy.md)

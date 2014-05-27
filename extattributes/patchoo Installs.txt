@@ -1,0 +1,12 @@
+#!/bin/bash
+prefs="/Library/Application Support/patchoo/com.github.patchoo"
+key="InstallsAvail"
+
+result=$(defaults read "$prefs" "$key")
+
+if [ "$?" == "0" ]
+then
+    echo "<result>$result</result>"
+else
+    echo "<result>n/a</result>"
+fi
