@@ -28,7 +28,7 @@ Breaking this down:
 * Any computer that has already had Casper install `VLC-2.1.4.pkg` will not be a member of the group, so the installation should only run once.
 * Any computer that has VLC, AND it is NOT version 2.1.4 will land in this group, on the patchoo update run, the pkg will cache for installation.
 
-It's recommended that you put the application version at the end of the smart group, as you will see from the example in the following chapters.
+It's recommended that you put the application version at the end of the smart group, as you will see from the example in the following chapters. It's easier to update your group for a new version, as the current JSS UI doesn't allow you to remove anything but the last criteria entry.
 
 ![vlc smart group](images/smart_group_vlc.png)
 
