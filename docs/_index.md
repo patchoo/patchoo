@@ -2,7 +2,7 @@ Patchoo!
 ========
 #### Casper patching done right
 
-**NOTE: all references to patchoo's old name 'junki' will be removed, screenshots still must be updated!** 
+**NOTE: 0.99 makes some major changes around [--cache](install_patchoo.sh.md) and [triggers](install_triggers.md). Ensure you update your [core policies](setup_core_policies.md) and [policies that cache pkgs](deploying_standalone_Installers.md)** 
 
 
 Documentation
@@ -19,7 +19,7 @@ Documentation
 	* [Install CocoaDialog](install_cocoadialog.md)
 	* [Install triggers](install_triggers.md)
 	* [Setup Extension Attributes](setup_extension_attributes.md)
-	* [Setup Smart Groups](setup_smart_groups.md)
+	* [Setup Core Smart Groups](setup_core_smart_groups.md)
 	* [Setup Core Policies](setup_core_policies.md)
 * [Deploying Apple Software Updates](deploying_apple_software_updates.md)
 * [Deploying Software via Casper Policies](deploying_software_via_policy.md)
@@ -36,5 +36,5 @@ Documentation
 	* [Setup Computer Deployment Groups](setup_computer_deployment_groups.md)
 	* [Setup patchooSWReleaseMode](setup_patchooswreleasemode.md)
 	* [Setup patchooASUReleaseMode](setup_patchooasureleasemode.md)
-	
+
 

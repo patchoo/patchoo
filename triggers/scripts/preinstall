@@ -8,7 +8,20 @@ targetLocation=$2
 targetVolume=$3
 
 shopt -s nullglob
-#for launchdplist in $targetVolume/Library/LaunchDaemons/com.github.munkiforjamf.junki-trigger-*
+
+# remove the old junki triggers
+for launchdplist in $targetVolume/Library/LaunchDaemons/com.github.munkiforjamf.junki-trigger-*
+do
+	if [ "$targetVolume" == "/" ]
+	then
+		echo "unload launchdaemon $launchdplist ..."
+		launchctl unload $launchdplist
+	fi
+	echo "rm launchdaemon $launchdplist ..."
+	rm $launchdplist
+done
+
+# remove any old version of the patchoo triggers
 for launchdplist in $targetVolume/Library/LaunchDaemons/com.github.patchoo-trigger-*
 do 
 	if [ "$targetVolume" == "/" ]

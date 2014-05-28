@@ -21,7 +21,7 @@
 #
 
 name="patchoo"
-version="0.982"
+version="0.99"
 
 # read only api user please!
 apiuser="apiuser"
@@ -118,12 +118,10 @@ fi
 
 # command line paramaters
 mode="$4"
-option="$5"
-pkgdescription="$6"
-pkgname="$7"
-prereqreceipt="$8"
-prereqpolicy="$(echo $9 | sed -e 's/ /\+/g')" # change out " " for +
-spawned="$1"
+prereqreceipt="$5"
+prereqpolicy="$(echo $6 | sed -e 's/ /\+/g')" # change out " " for +
+option="$7"
+spawned="$1" # used internally
 
 if $selfsignedjsscert
 then
@@ -137,7 +135,7 @@ jssgroupfile="/tmp/$name-jssgroups.tmp"
 
 # set and read preferences
 computername=$(scutil --get ComputerName)
-jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url")
+jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url" 2> /dev/null)
 
 daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
 
@@ -148,7 +146,7 @@ daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
 
 # check and write installs avail
 
-installsavail=$(defaults read "$prefs" InstallsAvail)
+installsavail=$(defaults read "$prefs" InstallsAvail 2> /dev/null)
 if [ "$?" != "0" ]
 then
 	defaults write "$prefs" InstallsAvail -string "No"
@@ -158,13 +156,13 @@ fi
 # set defaults for defer and blockingapp counts
 
 # defer is the # of times a user can defer updates
-deferthreshold=$(defaults read "$prefs" DeferThreshold)
+deferthreshold=$(defaults read "$prefs" DeferThreshold 2> /dev/null)
 if [ "$?" != "0" ]
 then
 	defaults write "$prefs" DeferThreshold -int $defaultdeferthresold
 	deferthreshold=$defaultdeferthresold
 fi
-defercount=$(defaults read "$prefs" DeferCount)
+defercount=$(defaults read "$prefs" DeferCount 2> /dev/null)
 if [ "$?" != "0" ]
 then
 	defaults write "$prefs" DeferCount -int 0
@@ -172,13 +170,13 @@ then
 fi
 
 # blockingapp is the # of times a blocking app can block a prompt
-blockappthreshold=$(defaults read "$prefs" BlockingAppThreshold)
+blockappthreshold=$(defaults read "$prefs" BlockingAppThreshold 2> /dev/null)
 if [ "$?" != "0" ]
 then
 	defaults write "$prefs" BlockingAppThreshold -int $defaultblockappthreshold
 	blockappthreshold=$defaultblockappthreshold
 fi
-blockappcount=$(defaults read "$prefs" BlockingAppCount)
+blockappcount=$(defaults read "$prefs" BlockingAppCount 2> /dev/null)
 if [ "$?" != "0" ]
 then
 	defaults write "$prefs" BlockingAppCount -int 0
@@ -331,38 +329,56 @@ spawnScript()
 #
 
 
-cachePkgs()
+cachePkg()
 {
 	# run after a pkg is cached in a policy
 	#	- checks for prereqs and calls policies if receipts not found
-	#	- gets pkg data from jss api and gives pkg friendly name in the gui by writing some metadata to the pkgdatafolder
+	#	- gets pkg data from jss api and gives pkg friendly name in the gui
 	#
-	echo "$pkgdescription" > "$pkgdatafolder/$pkgname.caspinfo"
-	# get pkgdata from the jss api
-	curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/packages/name/$(echo $pkgname | sed -e 's/ /\+/g') -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
-	# if it's flagged as an OS Upgrade (using createOSXInstallPkg), add that to pkg (very crudely)
-	[ "$option" == "--osupgrade" ] && touch "$pkgdatafolder/$pkgname.caspinfo.osupgrade"
-	secho "jamf has cached $pkgname"
-	secho "$pkgdescription" 2 "Downloaded" "globe"
-	# flag that we need a recon
-	touch "$datafolder/.patchoo-recon-required"
-
-	if [ "$prereqreceipt" != "" ]
+	
+	# find the latest addition to the Waiting Room
+	pkgname=$(ls -t "/Library/Application Support/JAMF/Waiting Room/" | head -n 1 | grep -v .cache.xml)
+	if [ ! -f "$pkgdatafolder/$pkgname.caspinfo" ] && [ "$pkgname" != "" ]
 	then
-		# we need to check for a prereq casper receipt
-		if [ ! -f "/Library/Application Support/JAMF/Receipts/$prereqreceipt" ]
+		# get pkgdata from the jss api
+		curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/packages/name/$(echo $pkgname | sed -e 's/ /\+/g') -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		# (error checking)
+		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
+		if [ "$pkgdescription" != "<info />" ]
 		then
-			# the receipt wasn't found
-			# query the JSS for the prereqpolicy
-			secho "$prereqreceipt is required and NOT found"
-			secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-			prereqpolicyid=$(curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
-			# (error checking)
-			# let's run the preq policy via id
-			# this is how we chain incremental updates
-			jamf policy -id $prereqpolicyid
+			echo "$pkgdescription" > "$pkgdatafolder/$pkgname.caspinfo"
+		else
+			# if it's blank, use the pkgname
+			echo "$pkgname" "$pkgdatafolder/$pkgname.caspinfo"
 		fi
+
+		# if it's flagged as an OS Upgrade (using createOSXInstallPkg), add osupgrade flag
+		[ "$option" == "--osupgrade" ] && touch "$pkgdatafolder/$pkgname.caspinfo.osupgrade"
+		secho "jamf has cached $pkgname"
+		secho "$pkgdescription" 2 "Downloaded" "globe"
+		# flag that we need a recon
+		touch "$datafolder/.patchoo-recon-required"
+
+		if [ "$prereqreceipt" != "" ]
+		then
+			# we need to check for a prereq casper receipt
+			if [ ! -f "/Library/Application Support/JAMF/Receipts/$prereqreceipt" ]
+			then
+				# the receipt wasn't found
+				# query the JSS for the prereqpolicy
+				secho "$prereqreceipt is required and NOT found"
+				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
+				prereqpolicyid=$(curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				# (error checking)
+				# let's run the preq policy via id
+				# this is how we chain incremental updates
+				jamf policy -id $prereqpolicyid
+			fi
+		fi
+	else
+		secho "i couldn't find a new pkg in the waiting room. :("
 	fi
+
 }
 
 checkASU()
@@ -417,10 +433,10 @@ checkASU()
 
 setASUCatalogURL()
 {
-	# in patchoorepsado mode patchoo takes care of re-writing client catalog urls so you can have dev/beta/prod catalogs based on jss group membership
+	# in patchooasureleasemode mode patchoo takes care of re-writing client catalog urls so you can have dev/beta/prod catalogs based on jss group membership
 	# you set your catalogURL / swupdate server as you usually do in Casper, and it will re-write OS and branch specific URLs based on the local CatalogURL.
 	# it assumes that you have turned off updates via other mechanisms 
-	currentswupdurl=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate CatalogURL)
+	currentswupdurl=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate CatalogURL 2> /dev/null)
 	
 	if [ "$currentswupdurl" != "" ]
 	then
@@ -544,8 +560,8 @@ installCasperPkg()
 	# check if a reboot is required by casper package, flag if it is.
 	[ "$(cat "${infofile}.xml" | grep "<reboot_required>true</reboot_required>")" != "" ] && touch "$pkgdatafolder/.restart-required" 
 	# check for fut and feu
-	[ "$(cat "${infofile}.xml" | grep "<fill_user_template>true</fill_user_template>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
-	[ "$(cat "${infofile}.xml" | grep "<fill_existing_users>true</fill_existing_users>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
+	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<fut>true</fut>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
+	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<feu>true</feu>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
 	secho "jamf is installing $casppkg"
 	jamf install $jamfinstallopts -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
 	# (insert error checking)
@@ -587,15 +603,26 @@ installSoftware()
 		else
 			(
 				# use cocoadialog for gui
-				percent=0
+				currentpercent=0
 				casptotal=$(cat $casppkginfo | wc -l)
-				percentstep=$(( 100 / ( casptotal + 1 ) ))	# add one so one install will give 50% progress whilst installing 1 pkg, since we can't get good progress from jamf bin
+				total=$(( $casptotal * 100 ))		 		
 		 		while read line
 		 		do
-					percent=$(( percent + percentstep ))
 					casppkgdescrip=$(echo "$line" | cut -f3)
-					echo "$percent Installing $casppkgdescrip ..."
-					installCasperPkg "$line"
+					installCasperPkg "$line" & # background the jamf install, we'll fudge a progressbar
+					caspinstallpid=$!
+					# we are fudging a progress bar, count up to 100, increase bar, until done, then 
+					for (( perfectcount=1; perfectcount<=100; perfectcount++ ))
+					do
+						percent=$(( ( (perfectcount + currentpercent) * 100 ) / $total ))
+						(( $percent == 100 )) && percent=99	# we don't want out progressbar to finish prematurely
+						echo "$percent Installing $casppkgdescrip ..."
+						kill -0 $caspinstallpid 2> /dev/null
+						[ "$?" != "0" ] && break # if it's done, break
+						sleep 1
+					done
+					wait $caspinstallpid # if we have run out progress bar, wait for pid to complete.
+					currentpercent=$(( currentpercent + 100 )) # add another 100 for each completed install				
 				done < "$casppkginfo"
 				echo "100 Installation complete"
 				sleep 1
@@ -1022,8 +1049,11 @@ getGroupMembership()
 	groupid=0
 	macaddress=$(networksetup -getmacaddress en0 | awk '{ print $3 }' | sed 's/:/./g')
 	# jss group file, we cache this in a central location so we can minimise number of hits on the jss for an update session.
-	[ ! -f "$jssgroupfile" ] && curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/computers/macaddress/$macaddress | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
-
+	if [ ! -f "$jssgroupfile" ]
+	then
+		secho "getting computer group membership ..."
+		curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/computers/macaddress/$macaddress | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
+	fi
 	for checkgroup in ${jssgroup[@]}
 	do
 		# we don't check against the production
@@ -1038,9 +1068,9 @@ getGroupMembership()
 	groupid=0
 }
 
-preUpdate()
+patchooStart()
 {
-	secho "performing preupdate checks ..."
+	secho "starting triggered patchoo run!"
 	jamfPolicyUpdate
 }
 
@@ -1049,7 +1079,7 @@ checkUpdatesSS()
 	spawnScript
 	secho "You will be notified if any installations are available" 4 "Checking for new software" "notice"
 	jamfPolicyUpdate
-	[ "$(defaults read "$prefs" InstallsAvail)" != "Yes" ] && displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
+	[ "$(defaults read "$prefs" InstallsAvail  2> /dev/null)" != "Yes" ] && displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
 }
 
 promptInstallSS()
@@ -1108,7 +1138,7 @@ bootstrapUpdates()
 	spawnScript
 	jamfRecon
 	jamfPolicyUpdate 
-	installsavail=$(defaults read "$prefs" InstallsAvail) 	# check if updates are avaialble
+	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null) 	# check if updates are avaialble
 	
 	while [ "$installsavail" == "Yes" ]
 	do
@@ -1124,7 +1154,7 @@ bootstrapUpdates()
 		# or run another update and install loop
 		jamfRecon
 		jamfPolicyUpdate
-		installsavail=$(defaults read "$prefs" InstallsAvail)
+		installsavail=$(defaults read "$prefs" InstallsAvail 2> /dev/null)
 	done
 
 	# no more updates stop boottrap
@@ -1228,7 +1258,7 @@ case $mode in
 	
 	"--cache" )
 		# run after caching package in policy to add metadata.
-		cachePkgs
+		cachePkg
 	;;
 
 	"--checkasu" )
@@ -1264,9 +1294,9 @@ case $mode in
 		processLogout
 	;;
 
-	"--preupdate" )
-		# when using patchooAdvanceMode (tm) this is used to launch the update triggers
-		preUpdate
+	"--patchoostart" )
+		# this starts the patchoo update process, triggered by -trigger patchoo
+		patchooStart
 	;;
 
 	"--bootstrap" )
@@ -1291,4 +1321,4 @@ esac
 # tidy up any leftovers
 cleanUp
 
-exit
+exit 0
