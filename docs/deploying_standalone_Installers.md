@@ -9,7 +9,8 @@ We'll follow on from our VLC example in the smart group.
 
 In this example we will assume you are using patchoo advanced, and software deployment groups. This patch will first of all be deployed to our dev / testing group.
 
-If you were deploying to production computers, you would just ensure that it's linked to the `update` trigger, but we'll go into that workflow in more detail later.
+If you were deploying to production computers, you would just ensure that it's linked to the `update` trigger. It is recommended that you look at using groups though as it will
+
 
 Create a new policy as follows:
 
@@ -17,8 +18,8 @@ Create a new policy as follows:
 
 * Name: `updateVLC-2.1.4`
 * Enabled: `true`
-* Category: `0-patchoo-dev`
-* Trigger: `update-dev`
+* Category: `0-patchoo-dev` or `0-patchoo` if you aren't using [software deployent groups](setup_computer_deployment_groups.md)
+* Trigger: `update-dev` or `update`  if you aren't using [software deployent groups](setup_computer_deployment_groups.md)
 * Execution: `ongoing`
 
 ![vlc general](images/policy_vlc_general.png)
@@ -38,9 +39,8 @@ It's important that the package is **cached**. patchoo will notify the user and 
 * Script: `0patchoo.sh`
 * Priority: `after` ***IMPORTANT***
 * Mode (1st param): `--cache`
-* (opt. --forceinstall / --osupgrade): `''` ***IMPORTANT:***  *as of the time of writing, Casper 9.x has a bug (D-005830) with passing script parameters. Even though this is optional, put in 2x single quotes to prevent this parameter from being empty*
-* pkg descript: `VLC Media Player 2.1.4` *this is the friendly name of this pkg for the GUI*
-* pkg filename: `VLC-2.1.4.pkg` *it's important that patchoo can match up your metadata with the cached pkg*
+
+*If you used version prior to 0.99 you will notice that this is simplified*
 
 ![vlc script](images/policy_vlc_script.png)
 
