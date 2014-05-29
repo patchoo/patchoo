@@ -344,13 +344,8 @@ cachePkg()
 		curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/packages/name/$(echo $pkgname | sed -e 's/ /\+/g') -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
-		if [ "$pkgdescription" != "<info />" ]
-		then
-			echo "$pkgdescription" > "$pkgdatafolder/$pkgname.caspinfo"
-		else
-			# if it's blank, use the pkgname
-			echo "$pkgname" "$pkgdatafolder/$pkgname.caspinfo"
-		fi
+		[ "$pkgdescription" == "<info />" ] && pkgdescription=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/') # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
+		echo "$pkgdescription" > "$pkgdatafolder/$pkgname.caspinfo"
 
 		# if it's flagged as an OS Upgrade (using createOSXInstallPkg), add osupgrade flag
 		[ "$option" == "--osupgrade" ] && touch "$pkgdatafolder/$pkgname.caspinfo.osupgrade"

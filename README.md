@@ -16,7 +16,7 @@ A lot of people have built different solutions on JAMFnation, but I think patcho
 
 ### Why not just use munki? ###
 
-That's certainly an option, and many people do use munki and Casper. It does mean administering another tool and there is no formal training or certification track for munki, which is important to some organisations. I hope some of these methods one day become part of Casper.
+That's certainly an option, and many people do use munki and Casper. The tools are designed differently and it's  hard to draw parallels between their workflows. It would be great to leverage munki, but currently it is difficult to integrate what's exposed via the JSS API and munki.
 
 ### Patchoo isn't just a script... ###
   

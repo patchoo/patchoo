@@ -221,6 +221,8 @@ ___
 
 These are client facing Self Service Policies, and as such should be named a categorised *nicely*. I'd recommend an Updates category.
 
+Icons are included [here](../extras/ss icons)
+
 ### [Check for New Software](id:ssCheck)
 
 #### General tab
@@ -283,11 +285,11 @@ These are client facing Self Service Policies, and as such should be named a cat
 * Description: `This will install all pending software installations.`
 * Feature the policy on the main page: `yes` (up to you).
 
-(the nice thinf about this, if you scope it as below, it will only popup on user's Self Service.app when installations are available)
-
 ![patchoo installss ss](images/policy_installss_ss.png)
 
 #### Scope tab
+
+(By scoping to the `patchooInstallsWaiting` this policy will only popup on user's Self Service.app when installations are available)
 
 * Computer Group: `patchooInstallsWaiting`
 
