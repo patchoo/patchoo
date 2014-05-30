@@ -239,7 +239,7 @@ Icons are included [here](../extras/ss icons)
 
 * Script: `0patchoo.sh`
 * Priority: `before`
-* Mode (1st param): `--checkss`
+* Mode (1st param): `--checkupdatess`
 
 ![patchoo ss script](images/policy_checkss_script.png)
 
