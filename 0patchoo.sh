@@ -21,7 +21,7 @@
 #
 
 name="patchoo"
-version="0.99"
+version="0.991"
 
 # read only api user please!
 apiuser="apiuser"
@@ -109,6 +109,8 @@ log="jamf.log"
 #
 # end of configurable settings
 #
+
+osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
 
 if [ ! -f "$cdialog" ]
 then
@@ -436,7 +438,6 @@ setASUCatalogURL()
 	if [ "$currentswupdurl" != "" ]
 	then
 		asuserver="$(echo $currentswupdurl | cut -f-3 -d/)"
-		osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
 		case $osxversion in	
 			10.5)
 				swupdateurl="$asuserver/content/catalogs/others/index-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
@@ -452,6 +453,9 @@ setASUCatalogURL()
 				;;
 			10.9)
 				swupdateurl="$asuserver/content/catalogs/others/index-10.9-mountainlion-lion-snowleopard-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
+				;;
+			10.10)
+				swupdateurl="$asuserver/content/catalogs/others/index-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
 				;;
 			*)
 				secho "I can't do this osx version.. sadface."
