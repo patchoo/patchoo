@@ -582,12 +582,7 @@ installSoftware()
 	secho "starting installation ..."
 	
 	# generate the update list tmp files
-	if $bootstrapmode
-	then
-		buildUpdateLists --quiet
-	else
-		buildUpdateLists
-	fi
+	buildUpdateLists --quiet
 	
 	# install all software	
 	if [ -s "$casppkginfo" ] # there are casper updates waiting
@@ -866,6 +861,8 @@ promptInstall()
 			# we need to logout the user
 			touch /tmp/.patchoo-install
 			preInstallWarnings
+			fauxLogout
+			installSoftware
 			logoutUser
 		;;
 		
@@ -937,58 +934,87 @@ preInstallWarnings()
 
 logoutUser()
 {
-	waitforlogout=30
-	# sending appleevent seems most robust and fastest way, can still be blocked by stuck app (I'm looking at you MS Office and Lync)
-	secho "sending logout ..."
-	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
+	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(echo -e \\xc2\\xab)event aevtrlgo$(echo -e \\xc2\\xbb)" -e "end ignoring"
+}
 
-	while [ "$(checkConsoleStatus)" != "nologin" ]
+# fauxLogout - added to workaround cocoaDialog not running outside a user session on mavericks+ - https://github.com/patchoo/patchoo/issues/16 
+#
+# thanks to Jon Stovell - bits inspired and stolen from quit script - http://jon.stovell.info/
+#
+# it just loops through all user visible apps, quits them and then unloads the finder and dock. dodgy!
+getAppList()
+(
+	applist=$(sudo -u $user osascript -e "tell application \"System Events\" to return displayed name of every application process whose (background only is false and displayed name is not \"Finder\")")
+	echo $applist
+)
+
+quitAllApps()
+(
+	applist=$(getAppList)
+	applistarray=$(echo $applist | sed -e 's/^/\"/' -e 's/$/\"/' -e 's/, /\" \"/g')
+	eval set $applistarray
+	for appname in "$@"
 	do
-		for (( c=1; c<=$waitforlogout; c++ ))
+		secho "trying to quit: $appname ..."
+		sudo -u $user osascript -e "ignoring application responses" -e "tell application \"$appname\" to quit" -e "end ignoring"
+	done
+)
+
+fauxLogout()
+(
+	secho "starting faux logout..."
+	user=$(who | grep console | awk '{print $1}')
+	waitforlogout=30
+	tryquitevery=3
+	while [ "$(getAppList)" != "" ]
+	do
+		for (( c=1; c<=(( $waitforlogout / $tryquitevery )); c++ ))
 		do
-			sleep 1
-			# check if we've logged out yet, break if so, otherwise check every second
-			[ "$(checkConsoleStatus)" == "nologin" ] && break
+			quitAllApps
+			sleep $tryquitevery
+			#check if all apps are quit break if so, otherwise fire every $tryquitevery
+			[ "$(getAppList)" == "" ] && break
 		done
-		if [ "$(checkConsoleStatus)" != "nologin" ]
+		if [ "$(getAppList)" != "" ]
 		then
-			# if we still haven't logged out after wait time, prompt user and send another appleevent
-			dialogtimeout=30
-			secho "no logout in $waitforlogout seconds, prompting user and trying logout again..."
+			# if we still haven't quit all Apps
+			dialogtimeout=60
+			secho "no fauxlogout in $waitforlogout seconds, prompting user and trying logout again..."
 			displayDialog "Ensure you have saved your documents and quit any open applications. You can Force Quit applications that aren't responding by pressing CMD-SHIFT-ESC." "Logging out" "The Logout process has stalled" "caution" "Continue Logout"
-			#secho "Logout process is timing out, please save and quit applciations" 8 "Logging out" "caution"
-			osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
+			quitAllApps
 		fi
 	done
-	# we should have really logged out by now!
-}
+	sudo -u $user launchctl unload /System/Library/LaunchAgents/com.apple.Finder.plist
+	sudo -u $user launchctl unload /System/Library/LaunchAgents/com.apple.Dock.plist
+	secho "fauxlogout done!"
+)
+
 
 processLogout()
 {
-	if [ -f /tmp/.patchoo-install ]
+	if [ "$installsavail" == "Yes" ]
 	then
-		#  we are hitting this on log out and the user has selected to install
-		installSoftware
-	else
-		# normal log out, let's check if there are updates and prompt
-		if [ "$installsavail" == "Yes" ]
-		then
-			# prompt user
-			promptInstall --logoutinstallsavail
-			if [ -f /tmp/.patchoo-install ]
-			then
-				# user chose to install updates
-				preInstallWarnings
-				installSoftware
-			else
-				# user chose later
-				return
-			fi
-		else
-			# no software waiting, normal logout
-			secho "no software to install, nuffin' to do."
-			return
-		fi
+		# if <10.9 we can use this can prompt outside a user session with cdialog
+		case $osxversion in	
+			10.5 | 10.6 | 10.7 | 10.8 )
+				# check if there are updates and prompt
+				# prompt user
+				promptInstall --logoutinstallsavail
+				if [ -f /tmp/.patchoo-install ]
+				then
+					# user chose to install updates
+					preInstallWarnings
+					installSoftware
+				else
+					# user chose later
+					return
+				fi
+			;;
+			*)
+				# currently cdialog doesn't support running outside user session for this os
+				secho "there are updates, but I can't prompt at the moment."
+			;;
+		esac
 	fi
 	
 	# process a restart or shutdown
