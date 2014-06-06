@@ -15,7 +15,7 @@
 #
 
 name="patchoo"
-version="0.9911"
+version="0.992"
 
 # read only api user please!
 apiuser="apiuser"
@@ -147,7 +147,7 @@ if [ -f "$datafolder/.patchoo-debug" ]
 then
 	set -vx	# DEBUG.
 	debugpath="$datafolder/debuglogs"
-	mkdir -f "$debugpath"
+	mkdir -p "$debugpath"
 	debuglogfile="$debugpath/patchoo${mode}-$(date "+%F_%H-%M-%S").log"
 	exec > "$debuglogfile" 2>&1
 fi
@@ -201,9 +201,9 @@ else
 fi
 
 # make tmp folder
-patchootmp="$datafolder/patchootmp-$$" # i need to find you during debug
-mkdir "$patchootmp"
-#patchootmp="$(mktemp -d -t patchoo)" 
+#patchootmp="/tmp/patchootmp-$$" # i need to find you during debug
+#mkdir "$patchootmp"
+patchootmp="$(mktemp -d -t patchoo)" 
 
 #
 # common functions 
@@ -661,8 +661,9 @@ installSoftware()
 					swupdcmd="softwareupdate -v -i $asupkg"
 					swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
 					softwareupdate -v -i "$asupkg" > $swupdateout &
+					softwareupdatepid=$!
 					# wait for the software update to finish, parse output of softwareupdate
-					while [ "$(checkProcess "$swupdcmd")" == "yes" ]
+					while kill -0 $softwareupdatepid >/dev/null 2>&1
 					do
 						sleep 1
 						# get percent to update progressbar
@@ -866,6 +867,7 @@ promptInstall()
 			secho "user selected install and logout..."
 			# we need to logout the user
 			touch /tmp/.patchoo-install
+			echo $$ > /tmp/.patchoo-install-pid
 			preInstallWarnings
 			fauxLogout & # we spawn it, so if anything goes awry during install, the process should put all back together and logout
 			# wait for the fauxlogout to complete
@@ -1000,8 +1002,15 @@ fauxLogout()
 	sudo -u $user launchctl unload /System/Library/LaunchAgents/com.apple.Dock.plist
 	secho "fauxlogout done! waiting for installations..."
 	touch /tmp/.patchoo-logoutdone
-	wait $PPID 	# this will wait for the parent process to finish installations (or crash - :/ )
+	installpid=$(cat /tmp/.patchoo-install-pid)
+	# wait for the install pid to finish
+	while ps -p $installpid > /dev/null
+	do
+		sleep 1
+	done
 	# putting it back order
+	rm /tmp/.patchoo-install-pid
+	rm /tmp/.patchoo-logoutdone
 	sudo -u $user launchctl load /System/Library/LaunchAgents/com.apple.Finder.plist
 	sudo -u $user launchctl load /System/Library/LaunchAgents/com.apple.Dock.plist
 	sleep 1
@@ -1290,7 +1299,7 @@ cleanUp()
 {
 	rm -R "$patchootmp"
 	[ -f "$jssgroupfile" ] && rm "$jssgroupfile" 	# cached group membership
-	[ "$spawned" == "--spawned" ] && rm $0 	#if we are spawned, eat ourself.
+	[ "$spawned" == "--spawned" ] && rm "$0" 	#if we are spawned, eat ourself.
 }
 
 ###########
