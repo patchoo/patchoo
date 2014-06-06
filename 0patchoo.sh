@@ -9,19 +9,13 @@
 # patchoo somewhat emulates munki workflows and user experience for JAMF's Casper.
 #
 
-# DEBUG STUFF
-#set -x	# DEBUG. Display commands and their arguments as they are executed
-#set -v	# VERBOSE. Display shell input lines as they are read.
-#set -n	# EVALUATE. Check syntax of the script but dont execute
-#debuglogfile=/DEBUGpatchoo-$(date "+%F_%H-%M-%S").log
-#exec > $debuglogfile 2>&1
 
 #
 # start configurable settings
 #
 
 name="patchoo"
-version="0.991"
+version="0.9911"
 
 # read only api user please!
 apiuser="apiuser"
@@ -133,7 +127,7 @@ else
 fi
 
 bootstrapagent="/Library/LaunchAgents/com.github.patchoo-bootstrap.plist"
-jssgroupfile="/tmp/$name-jssgroups.tmp"
+jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
 # set and read preferences
 computername=$(scutil --get ComputerName)
@@ -145,6 +139,18 @@ daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
 # create the data folder if it doesn't exist
 [ ! -d "$datafolder" ] && mkdir -p "$datafolder"
 [ ! -d "$pkgdatafolder" ] && mkdir -p "$pkgdatafolder"
+chmod 700 "$datafolder"
+
+
+# DEBUG STUFF
+if [ -f "$datafolder/.patchoo-debug" ]
+then
+	set -vx	# DEBUG.
+	debugpath="$datafolder/debuglogs"
+	mkdir -f "$debugpath"
+	debuglogfile="$debugpath/patchoo${mode}-$(date "+%F_%H-%M-%S").log"
+	exec > "$debuglogfile" 2>&1
+fi
 
 # check and write installs avail
 
@@ -195,7 +201,7 @@ else
 fi
 
 # make tmp folder
-patchootmp="/tmp/patchootmp-$$" # i need to find you during debug
+patchootmp="$datafolder/patchootmp-$$" # i need to find you during debug
 mkdir "$patchootmp"
 #patchootmp="$(mktemp -d -t patchoo)" 
 
@@ -316,7 +322,7 @@ spawnScript()
 	# the script copies, then spawns itself 
 	if [ "$spawned" != "--spawned" ]
 	then
-		tmpscript="/tmp/$name-$RANDOM.sh"
+		tmpscript="$datafolder/$name-$RANDOM.sh"
 		cp "$0" "$tmpscript"
 		# spawn the script in the background
 		secho "spawned script $tmpscript"
@@ -861,9 +867,15 @@ promptInstall()
 			# we need to logout the user
 			touch /tmp/.patchoo-install
 			preInstallWarnings
-			fauxLogout
+			fauxLogout & # we spawn it, so if anything goes awry during install, the process should put all back together and logout
+			# wait for the fauxlogout to complete
+			while [ ! -f /tmp/.patchoo-logoutdone ]
+			do
+				sleep 1
+			done
 			installSoftware
-			logoutUser
+			rm /tmp/.patchoo-logoutdone
+			return # once this finishes fauxLogut will handle logout
 		;;
 		
 		"Later ($deferremain remaining)" )
@@ -986,7 +998,14 @@ fauxLogout()
 	done
 	sudo -u $user launchctl unload /System/Library/LaunchAgents/com.apple.Finder.plist
 	sudo -u $user launchctl unload /System/Library/LaunchAgents/com.apple.Dock.plist
-	secho "fauxlogout done!"
+	secho "fauxlogout done! waiting for installations..."
+	touch /tmp/.patchoo-logoutdone
+	wait $PPID 	# this will wait for the parent process to finish installations (or crash - :/ )
+	# putting it back order
+	sudo -u $user launchctl load /System/Library/LaunchAgents/com.apple.Finder.plist
+	sudo -u $user launchctl load /System/Library/LaunchAgents/com.apple.Dock.plist
+	sleep 1
+	logoutUser
 )
 
 
@@ -1012,7 +1031,7 @@ processLogout()
 			;;
 			*)
 				# currently cdialog doesn't support running outside user session for this os
-				secho "there are updates, but I can't prompt at the moment."
+				secho ""
 			;;
 		esac
 	fi
@@ -1336,7 +1355,7 @@ case $mode in
 		# used internally by launchagent for loginwindow session
 		bootstrapHelper
 	;;
-	
+
 	*)
 		secho "malfunction. :/ - i don't know how to $mode"
 	;;
