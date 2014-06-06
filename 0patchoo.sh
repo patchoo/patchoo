@@ -1132,7 +1132,7 @@ checkUpdatesSS()
 	spawnScript
 	secho "You will be notified if any installations are available" 4 "Checking for new software" "notice"
 	jamfPolicyUpdate
-	[ "$(defaults read "$prefs" InstallsAvail  2> /dev/null)" != "Yes" ] && displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
+	#[ "$(defaults read "$prefs" InstallsAvail  2> /dev/null)" != "Yes" ] && displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
 }
 
 promptInstallSS()
