@@ -15,7 +15,7 @@
 #
 
 name="patchoo"
-version="0.992"
+version="0.9931"
 
 # read only api user please!
 apiuser="apiuser"
@@ -24,7 +24,7 @@ apipass="apipassword"
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
-cdialog="/Applications/Utilities/cocoaDialog.app/Contents/MacOS/cocoaDialog"
+cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
@@ -96,6 +96,8 @@ IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC 
 iconsize="72"
 dialogtimeout="210"
 
+lockscreenlogo="" # used for fauxLogout (ARD LockScreen will display this, ensure a logo with black background)
+
 # log to the jamf log.
 logto="/var/log/"
 log="jamf.log"
@@ -106,7 +108,7 @@ log="jamf.log"
 
 osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
 
-if [ ! -f "$cdialog" ]
+if [ ! -d "$cdialog" ]
 then
 	echo "FATAL: I can't find cocoadialog, stopping 'ere"
 	exit 1
@@ -126,6 +128,7 @@ else
 	curlopts=""
 fi
 
+cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
 bootstrapagent="/Library/LaunchAgents/com.github.patchoo-bootstrap.plist"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
@@ -225,7 +228,7 @@ secho()
 			echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY: $title, $message" >> "$logto/$log"			
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			"$cdialog" bubble --title "$title" --text "$message" --icon $icon --timeout $timeout &
+			"$cdialogbin" bubble --title "$title" --text "$message" --icon $icon --timeout $timeout &
 		else
 			echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY-NODISPLAY: $title, $message" >> "$logto/$log"
 		fi
@@ -251,7 +254,7 @@ displayDialog()
 	button3="$7"
 	
 	# show the dialog...
-	"$cdialog" msgbox --title "$title" --icon "$icon"  --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
+	"$cdialogbin" msgbox --title "$title" --icon "$icon"  --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
 }
 
 makeMessage()
@@ -628,7 +631,7 @@ installSoftware()
 				sleep 1
 				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required"
 				sleep 1
-			) | "$cdialog" progressbar --icon installer --float --title "Installing Software" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
+			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Software" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
 	fi
 	
@@ -678,7 +681,7 @@ installSoftware()
 				sleep 1
 				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required"
 				sleep 1
-			) | "$cdialog" progressbar --icon installer --float --title "Installing Apple Software Updates" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
+			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Apple Software Updates" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
 	fi
 
@@ -869,8 +872,8 @@ promptInstall()
 			touch /tmp/.patchoo-install
 			echo $$ > /tmp/.patchoo-install-pid
 			preInstallWarnings
-			fauxLogout & # we spawn it, so if anything goes awry during install, the process should put all back together and logout
-			# wait for the fauxlogout to complete
+			fauxLogout & # we spawn it, so if anything goes awry during install, the fauxLogout is a killswitch to put the mac back into line.
+			# wait for the fauxlogout to do it's thing
 			while [ ! -f /tmp/.patchoo-logoutdone ]
 			do
 				sleep 1
@@ -948,14 +951,38 @@ preInstallWarnings()
 
 logoutUser()
 {
-	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(echo -e \\xc2\\xab)event aevtrlgo$(echo -e \\xc2\\xbb)" -e "end ignoring"
+	# added this back to ensure we get logged out
+	waitforlogout=30
+	# sending appleevent seems most robust and fastest way, can still be blocked by stuck app (I'm looking at you MS Office and Lync)
+	secho "sending logout ..."
+	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
+
+	while [ "$(checkConsoleStatus)" != "nologin" ]
+	do
+		for (( c=1; c<=$waitforlogout; c++ ))
+		do
+			sleep 1
+			# check if we've logged out yet, break if so, otherwise check every second
+			[ "$(checkConsoleStatus)" == "nologin" ] && break
+		done
+		if [ "$(checkConsoleStatus)" != "nologin" ]
+		then
+			# if we still haven't logged out after wait time, prompt user and send another appleevent
+			dialogtimeout=30
+			secho "no logout in $waitforlogout seconds, prompting user and trying logout again..."
+			displayDialog "Ensure you have saved your documents and quit any open applications. You can Force Quit applications that aren't responding by pressing CMD-SHIFT-ESC." "Logging out" "The Logout process has stalled" "caution" "Continue Logout"
+			#secho "Logout process is timing out, please save and quit applciations" 8 "Logging out" "caution"
+			osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
+		fi
+	done
+	# we should have really logged out by now!
 }
 
 # fauxLogout - added to workaround cocoaDialog not running outside a user session on mavericks+ - https://github.com/patchoo/patchoo/issues/16 
 #
 # thanks to Jon Stovell - bits inspired and stolen from quit script - http://jon.stovell.info/
 #
-# it just loops through all user visible apps, quits them and then unloads the finder and dock. dodgy!
+# loops through all user visible apps, quits, writes lsuielement changes to cocoa (prevent dock showing), uses ARD lockscreen to blank screen out.
 getAppList()
 (
 	applist=$(sudo -u $user osascript -e "tell application \"System Events\" to return displayed name of every application process whose (background only is false and displayed name is not \"Finder\")")
@@ -993,14 +1020,33 @@ fauxLogout()
 		then
 			# if we still haven't quit all Apps
 			dialogtimeout=60
-			secho "no fauxlogout in $waitforlogout seconds, prompting user and trying logout again..."
+			secho "apps are still running after $waitforlogout seconds, prompting user and trying quit loop again.."
 			displayDialog "Ensure you have saved your documents and quit any open applications. You can Force Quit applications that aren't responding by pressing CMD-SHIFT-ESC." "Logging out" "The Logout process has stalled" "caution" "Continue Logout"
 			quitAllApps
 		fi
 	done
-	sudo -u $user launchctl unload /System/Library/LaunchAgents/com.apple.Finder.plist
-	sudo -u $user launchctl unload /System/Library/LaunchAgents/com.apple.Dock.plist
-	secho "fauxlogout done! waiting for installations..."
+	
+	# thanks mm2270 for this - https://github.com/mm2270
+	# move the standard lock logo out of lockscreen app (we don't want a big padlock)
+	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
+	if [ -f "$lockscreenlogo" ]
+	then
+		# perhaps we can point it at something already in the filesystem, or your own (needs black background... hmmm)
+		sips sips -s format jpeg --resampleWidth 512 "$lockscreenlogo" --o "$patchootmp/Lock.jpg"
+		mv "$patchootmp/Lock.jpg" /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
+	fi
+	# lock screen
+	/System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/MacOS/LockScreen &
+	sleep 1
+	# makes changes to cocoaDialog
+	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 0
+	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 3
+	chmod 644 "${cdialog}/Contents/Info.plist"
+
+	secho "fauxlogout done, screen locked! waiting for installations (mypid: $$)..."
+	# out the lock screen back, incase system update does something to remotemanagement bundles
+	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
+
 	touch /tmp/.patchoo-logoutdone
 	installpid=$(cat /tmp/.patchoo-install-pid)
 	# wait for the install pid to finish
@@ -1011,10 +1057,14 @@ fauxLogout()
 	# putting it back order
 	rm /tmp/.patchoo-install-pid
 	rm /tmp/.patchoo-logoutdone
-	sudo -u $user launchctl load /System/Library/LaunchAgents/com.apple.Finder.plist
-	sudo -u $user launchctl load /System/Library/LaunchAgents/com.apple.Dock.plist
-	sleep 1
-	logoutUser
+	# undo changes to cocoaDialog
+	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 1
+	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 0
+	chmod 644 "${cdialog}/Contents/Info.plist"
+	# unlock and logout
+	killall LockScreen
+	logoutUser # the logout policy will handle recon / restart / shutdown requests
+
 )
 
 
@@ -1221,8 +1271,8 @@ bootstrapUpdates()
 bootstrapSetup()
 {
 # write out a launchagent to call bootstrap helper
-cat > "$bootstrapagent" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
+
+bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1241,9 +1291,9 @@ cat > "$bootstrapagent" << EOF
         <string>--bootstraphelper</string>
 	</array>
 </dict>
-</plist>
-EOF
+</plist>'
 
+	echo "$bootstrappagentplist" > "$bootstrapagent"
 	# set permissions for agent
 	chown root:wheel "$bootstrapagent"
 	chmod 644 "$bootstrapagent"
@@ -1286,7 +1336,7 @@ jamfRecon()
 	secho "jamf is running a recon..."
 	if [ "$1" == "--feedback" ]
 	then
-		( jamf recon ) | "$cdialog" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
+		( jamf recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
 	else
 		jamf recon
 	fi		

@@ -131,6 +131,7 @@ then
 				;;
 			10.10)
 				swupdateurl="http://$asuserver:$asuport/content/catalogs/others/index-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog"
+				;;
 			*)
 				echo "I can't do this osx version.. sadface."
 				;;
