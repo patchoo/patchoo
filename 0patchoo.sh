@@ -15,7 +15,7 @@
 #
 
 name="patchoo"
-version="0.9931"
+version="0.993"
 
 # read only api user please!
 apiuser="apiuser"
@@ -951,31 +951,8 @@ preInstallWarnings()
 
 logoutUser()
 {
-	# added this back to ensure we get logged out
-	waitforlogout=30
-	# sending appleevent seems most robust and fastest way, can still be blocked by stuck app (I'm looking at you MS Office and Lync)
 	secho "sending logout ..."
 	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
-
-	while [ "$(checkConsoleStatus)" != "nologin" ]
-	do
-		for (( c=1; c<=$waitforlogout; c++ ))
-		do
-			sleep 1
-			# check if we've logged out yet, break if so, otherwise check every second
-			[ "$(checkConsoleStatus)" == "nologin" ] && break
-		done
-		if [ "$(checkConsoleStatus)" != "nologin" ]
-		then
-			# if we still haven't logged out after wait time, prompt user and send another appleevent
-			dialogtimeout=30
-			secho "no logout in $waitforlogout seconds, prompting user and trying logout again..."
-			displayDialog "Ensure you have saved your documents and quit any open applications. You can Force Quit applications that aren't responding by pressing CMD-SHIFT-ESC." "Logging out" "The Logout process has stalled" "caution" "Continue Logout"
-			#secho "Logout process is timing out, please save and quit applciations" 8 "Logging out" "caution"
-			osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
-		fi
-	done
-	# we should have really logged out by now!
 }
 
 # fauxLogout - added to workaround cocoaDialog not running outside a user session on mavericks+ - https://github.com/patchoo/patchoo/issues/16 
@@ -1036,20 +1013,19 @@ fauxLogout()
 		mv "$patchootmp/Lock.jpg" /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
 	fi
 	# lock screen
-	/System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/MacOS/LockScreen &
+	/System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/MacOS/LockScreen & > /dev/null
 	sleep 1
 	# makes changes to cocoaDialog
 	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 0
 	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 3
 	chmod 644 "${cdialog}/Contents/Info.plist"
 
-	secho "fauxlogout done, screen locked! waiting for installations (mypid: $$)..."
-	# out the lock screen back, incase system update does something to remotemanagement bundles
+	# put the lock screen logo back, in case system update does something to remotemanagement bundles
 	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
 
 	touch /tmp/.patchoo-logoutdone
 	installpid=$(cat /tmp/.patchoo-install-pid)
-	# wait for the install pid to finish
+	secho "fauxlogout done, screen locked (my pid: $$) waiting installs (pid: $installpid)..."
 	while ps -p $installpid > /dev/null
 	do
 		sleep 1
