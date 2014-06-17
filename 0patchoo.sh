@@ -138,6 +138,16 @@ jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url" 2> /
 
 daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
 
+# due to issue with cocoaDialog outside of user session, this check as been added
+case $osxversion in	
+	10.5 | 10.6 | 10.7 | 10.8 )
+		displayatlogout=true
+	;;
+	*)
+		displayatlogout=false
+	;;
+esac
+
 
 # create the data folder if it doesn't exist
 [ ! -d "$datafolder" ] && mkdir -p "$datafolder"
@@ -204,8 +214,6 @@ else
 fi
 
 # make tmp folder
-#patchootmp="/tmp/patchootmp-$$" # i need to find you during debug
-#mkdir "$patchootmp"
 patchootmp="$(mktemp -d -t patchoo)" 
 
 #
@@ -666,7 +674,7 @@ installSoftware()
 					softwareupdate -v -i "$asupkg" > $swupdateout &
 					softwareupdatepid=$!
 					# wait for the software update to finish, parse output of softwareupdate
-					while kill -0 $softwareupdatepid >/dev/null 2>&1
+					while kill -0 $softwareupdatepid > /dev/null 2>&1
 					do
 						sleep 1
 						# get percent to update progressbar
@@ -729,6 +737,13 @@ promptInstall()
 		return
 	fi
 
+	# prompt in self service mode (no defer, and remove flag)
+	if [ -f "$datafolder/.patchoo-selfservice-check" ]
+	then
+		promptmode="--selfservice"
+		rm "$datafolder/.patchoo-selfservice-check"
+	fi
+
 	# there are waiting updates ... make a message for the user prompt	
 	secho "prompting user ..."
 	message=""
@@ -751,7 +766,7 @@ promptInstall()
 
 	# add warnings if there are firmware/os upgrade pkgs
 	addWarnings
-	
+
 	case $promptmode in	
 		"--logoutinstallsavail" )
 			#
@@ -956,9 +971,7 @@ logoutUser()
 }
 
 # fauxLogout - added to workaround cocoaDialog not running outside a user session on mavericks+ - https://github.com/patchoo/patchoo/issues/16 
-#
 # thanks to Jon Stovell - bits inspired and stolen from quit script - http://jon.stovell.info/
-#
 # loops through all user visible apps, quits, writes lsuielement changes to cocoa (prevent dock showing), uses ARD lockscreen to blank screen out.
 getAppList()
 (
@@ -989,9 +1002,9 @@ fauxLogout()
 		for (( c=1; c<=(( $waitforlogout / $tryquitevery )); c++ ))
 		do
 			quitAllApps
-			sleep $tryquitevery
 			#check if all apps are quit break if so, otherwise fire every $tryquitevery
 			[ "$(getAppList)" == "" ] && break
+			sleep $tryquitevery
 		done
 		if [ "$(getAppList)" != "" ]
 		then
@@ -1003,7 +1016,7 @@ fauxLogout()
 		fi
 	done
 	
-	# thanks mm2270 for this - https://github.com/mm2270
+	# thanks mm2270 (https://github.com/mm2270) for this technique! 
 	# move the standard lock logo out of lockscreen app (we don't want a big padlock)
 	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
 	if [ -f "$lockscreenlogo" ]
@@ -1049,26 +1062,19 @@ processLogout()
 	if [ "$installsavail" == "Yes" ]
 	then
 		# if <10.9 we can use this can prompt outside a user session with cdialog
-		case $osxversion in	
-			10.5 | 10.6 | 10.7 | 10.8 )
-				# check if there are updates and prompt
-				# prompt user
-				promptInstall --logoutinstallsavail
-				if [ -f /tmp/.patchoo-install ]
-				then
-					# user chose to install updates
-					preInstallWarnings
-					installSoftware
-				else
-					# user chose later
-					return
-				fi
-			;;
-			*)
-				# currently cdialog doesn't support running outside user session for this os
-				secho ""
-			;;
-		esac
+		if displayatlogout
+		then
+			promptInstall --logoutinstallsavail
+			if [ -f /tmp/.patchoo-install ]
+			then
+				# user chose to install updates
+				preInstallWarnings
+				installSoftware
+			else
+				# user chose later
+				return
+			fi
+		fi
 	fi
 	
 	# process a restart or shutdown
@@ -1156,9 +1162,14 @@ patchooStart()
 checkUpdatesSS()
 {
 	spawnScript
+	touch "$datafolder/.patchoo-selfservice-check"
 	secho "You will be notified if any installations are available" 4 "Checking for new software" "notice"
 	jamfPolicyUpdate
-	#[ "$(defaults read "$prefs" InstallsAvail  2> /dev/null)" != "Yes" ] && displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
+	if [ -f "$datafolder/.patchoo-selfservice-check" ] # the flag is still here, no promptforupdates!
+	then
+		displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
+		rm "$datafolder/.patchoo-selfservice-check"
+	fi
 }
 
 promptInstallSS()
@@ -1276,7 +1287,7 @@ bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
 	# copy the script to local drive
 	cp "$0" /Library/Scripts/patchoo.sh
 	chown root:wheel /Library/Scripts/patchoo.sh
-	chmod 770 /Library/Scripts/patchoo.sh
+	chmod 700 /Library/Scripts/patchoo.sh
 	# unset any loginwindow autologin
 	defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser ""
 	secho "bootstrap setup done, you need to restart"
