@@ -9,19 +9,13 @@
 # patchoo somewhat emulates munki workflows and user experience for JAMF's Casper.
 #
 
-# DEBUG STUFF
-#set -x	# DEBUG. Display commands and their arguments as they are executed
-#set -v	# VERBOSE. Display shell input lines as they are read.
-#set -n	# EVALUATE. Check syntax of the script but dont execute
-#debuglogfile=/DEBUGpatchoo-$(date "+%F_%H-%M-%S").log
-#exec > $debuglogfile 2>&1
 
 #
 # start configurable settings
 #
 
 name="patchoo"
-version="0.99"
+version="0.9931"
 
 # read only api user please!
 apiuser="apiuser"
@@ -30,7 +24,7 @@ apipass="apipassword"
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
-cdialog="/Applications/Utilities/cocoaDialog.app/Contents/MacOS/cocoaDialog"
+cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
@@ -102,6 +96,8 @@ IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC 
 iconsize="72"
 dialogtimeout="210"
 
+lockscreenlogo="" # used for fauxLogout (ARD LockScreen will display this, ensure a logo with black background)
+
 # log to the jamf log.
 logto="/var/log/"
 log="jamf.log"
@@ -110,7 +106,9 @@ log="jamf.log"
 # end of configurable settings
 #
 
-if [ ! -f "$cdialog" ]
+osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
+
+if [ ! -d "$cdialog" ]
 then
 	echo "FATAL: I can't find cocoadialog, stopping 'ere"
 	exit 1
@@ -130,8 +128,9 @@ else
 	curlopts=""
 fi
 
+cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
 bootstrapagent="/Library/LaunchAgents/com.github.patchoo-bootstrap.plist"
-jssgroupfile="/tmp/$name-jssgroups.tmp"
+jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
 # set and read preferences
 computername=$(scutil --get ComputerName)
@@ -139,10 +138,32 @@ jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url" 2> /
 
 daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
 
+# due to issue with cocoaDialog outside of user session, this check as been added
+case $osxversion in	
+	10.5 | 10.6 | 10.7 | 10.8 )
+		displayatlogout=true
+	;;
+	*)
+		displayatlogout=false
+	;;
+esac
+
 
 # create the data folder if it doesn't exist
 [ ! -d "$datafolder" ] && mkdir -p "$datafolder"
 [ ! -d "$pkgdatafolder" ] && mkdir -p "$pkgdatafolder"
+chmod 700 "$datafolder"
+
+
+# DEBUG STUFF
+if [ -f "$datafolder/.patchoo-debug" ]
+then
+	set -vx	# DEBUG.
+	debugpath="$datafolder/debuglogs"
+	mkdir -p "$debugpath"
+	debuglogfile="$debugpath/patchoo${mode}-$(date "+%F_%H-%M-%S").log"
+	exec > "$debuglogfile" 2>&1
+fi
 
 # check and write installs avail
 
@@ -193,9 +214,7 @@ else
 fi
 
 # make tmp folder
-patchootmp="/tmp/patchootmp-$$" # i need to find you during debug
-mkdir "$patchootmp"
-#patchootmp="$(mktemp -d -t patchoo)" 
+patchootmp="$(mktemp -d -t patchoo)" 
 
 #
 # common functions 
@@ -217,7 +236,7 @@ secho()
 			echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY: $title, $message" >> "$logto/$log"			
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			"$cdialog" bubble --title "$title" --text "$message" --icon $icon --timeout $timeout &
+			"$cdialogbin" bubble --title "$title" --text "$message" --icon $icon --timeout $timeout &
 		else
 			echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY-NODISPLAY: $title, $message" >> "$logto/$log"
 		fi
@@ -243,7 +262,7 @@ displayDialog()
 	button3="$7"
 	
 	# show the dialog...
-	"$cdialog" msgbox --title "$title" --icon "$icon"  --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
+	"$cdialogbin" msgbox --title "$title" --icon "$icon"  --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
 }
 
 makeMessage()
@@ -314,7 +333,7 @@ spawnScript()
 	# the script copies, then spawns itself 
 	if [ "$spawned" != "--spawned" ]
 	then
-		tmpscript="/tmp/$name-$RANDOM.sh"
+		tmpscript="$datafolder/$name-$RANDOM.sh"
 		cp "$0" "$tmpscript"
 		# spawn the script in the background
 		secho "spawned script $tmpscript"
@@ -436,7 +455,6 @@ setASUCatalogURL()
 	if [ "$currentswupdurl" != "" ]
 	then
 		asuserver="$(echo $currentswupdurl | cut -f-3 -d/)"
-		osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
 		case $osxversion in	
 			10.5)
 				swupdateurl="$asuserver/content/catalogs/others/index-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
@@ -452,6 +470,9 @@ setASUCatalogURL()
 				;;
 			10.9)
 				swupdateurl="$asuserver/content/catalogs/others/index-10.9-mountainlion-lion-snowleopard-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
+				;;
+			10.10)
+				swupdateurl="$asuserver/content/catalogs/others/index-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
 				;;
 			*)
 				secho "I can't do this osx version.. sadface."
@@ -578,12 +599,7 @@ installSoftware()
 	secho "starting installation ..."
 	
 	# generate the update list tmp files
-	if $bootstrapmode
-	then
-		buildUpdateLists --quiet
-	else
-		buildUpdateLists
-	fi
+	buildUpdateLists --quiet
 	
 	# install all software	
 	if [ -s "$casppkginfo" ] # there are casper updates waiting
@@ -623,7 +639,7 @@ installSoftware()
 				sleep 1
 				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required"
 				sleep 1
-			) | "$cdialog" progressbar --icon installer --float --title "Installing Software" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
+			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Software" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
 	fi
 	
@@ -656,8 +672,9 @@ installSoftware()
 					swupdcmd="softwareupdate -v -i $asupkg"
 					swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
 					softwareupdate -v -i "$asupkg" > $swupdateout &
+					softwareupdatepid=$!
 					# wait for the software update to finish, parse output of softwareupdate
-					while [ "$(checkProcess "$swupdcmd")" == "yes" ]
+					while kill -0 $softwareupdatepid > /dev/null 2>&1
 					do
 						sleep 1
 						# get percent to update progressbar
@@ -672,7 +689,7 @@ installSoftware()
 				sleep 1
 				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required"
 				sleep 1
-			) | "$cdialog" progressbar --icon installer --float --title "Installing Apple Software Updates" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
+			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Apple Software Updates" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
 	fi
 
@@ -720,6 +737,13 @@ promptInstall()
 		return
 	fi
 
+	# prompt in self service mode (no defer, and remove flag)
+	if [ -f "$datafolder/.patchoo-selfservice-check" ]
+	then
+		promptmode="--selfservice"
+		rm "$datafolder/.patchoo-selfservice-check"
+	fi
+
 	# there are waiting updates ... make a message for the user prompt	
 	secho "prompting user ..."
 	message=""
@@ -742,7 +766,7 @@ promptInstall()
 
 	# add warnings if there are firmware/os upgrade pkgs
 	addWarnings
-	
+
 	case $promptmode in	
 		"--logoutinstallsavail" )
 			#
@@ -861,8 +885,17 @@ promptInstall()
 			secho "user selected install and logout..."
 			# we need to logout the user
 			touch /tmp/.patchoo-install
+			echo $$ > /tmp/.patchoo-install-pid
 			preInstallWarnings
-			logoutUser
+			fauxLogout & # we spawn it, so if anything goes awry during install, the fauxLogout is a killswitch to put the mac back into line.
+			# wait for the fauxlogout to do it's thing
+			while [ ! -f /tmp/.patchoo-logoutdone ]
+			do
+				sleep 1
+			done
+			installSoftware
+			rm /tmp/.patchoo-logoutdone
+			return # once this finishes fauxLogut will handle logout
 		;;
 		
 		"Later ($deferremain remaining)" )
@@ -933,43 +966,104 @@ preInstallWarnings()
 
 logoutUser()
 {
-	waitforlogout=30
-	# sending appleevent seems most robust and fastest way, can still be blocked by stuck app (I'm looking at you MS Office and Lync)
 	secho "sending logout ..."
 	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
+}
 
-	while [ "$(checkConsoleStatus)" != "nologin" ]
+# fauxLogout - added to workaround cocoaDialog not running outside a user session on mavericks+ - https://github.com/patchoo/patchoo/issues/16 
+# thanks to Jon Stovell - bits inspired and stolen from quit script - http://jon.stovell.info/
+# loops through all user visible apps, quits, writes lsuielement changes to cocoa (prevent dock showing), uses ARD lockscreen to blank screen out.
+getAppList()
+(
+	applist=$(sudo -u $user osascript -e "tell application \"System Events\" to return displayed name of every application process whose (background only is false and displayed name is not \"Finder\")")
+	echo $applist
+)
+
+quitAllApps()
+(
+	applist=$(getAppList)
+	applistarray=$(echo $applist | sed -e 's/^/\"/' -e 's/$/\"/' -e 's/, /\" \"/g')
+	eval set $applistarray
+	for appname in "$@"
 	do
-		for (( c=1; c<=$waitforlogout; c++ ))
+		secho "trying to quit: $appname ..."
+		sudo -u $user osascript -e "ignoring application responses" -e "tell application \"$appname\" to quit" -e "end ignoring"
+	done
+)
+
+fauxLogout()
+(
+	secho "starting faux logout..."
+	user=$(who | grep console | awk '{print $1}')
+	waitforlogout=30
+	tryquitevery=3
+	while [ "$(getAppList)" != "" ]
+	do
+		for (( c=1; c<=(( $waitforlogout / $tryquitevery )); c++ ))
 		do
-			sleep 1
-			# check if we've logged out yet, break if so, otherwise check every second
-			[ "$(checkConsoleStatus)" == "nologin" ] && break
+			quitAllApps
+			#check if all apps are quit break if so, otherwise fire every $tryquitevery
+			[ "$(getAppList)" == "" ] && break
+			sleep $tryquitevery
 		done
-		if [ "$(checkConsoleStatus)" != "nologin" ]
+		if [ "$(getAppList)" != "" ]
 		then
-			# if we still haven't logged out after wait time, prompt user and send another appleevent
-			dialogtimeout=30
-			secho "no logout in $waitforlogout seconds, prompting user and trying logout again..."
+			# if we still haven't quit all Apps
+			dialogtimeout=60
+			secho "apps are still running after $waitforlogout seconds, prompting user and trying quit loop again.."
 			displayDialog "Ensure you have saved your documents and quit any open applications. You can Force Quit applications that aren't responding by pressing CMD-SHIFT-ESC." "Logging out" "The Logout process has stalled" "caution" "Continue Logout"
-			#secho "Logout process is timing out, please save and quit applciations" 8 "Logging out" "caution"
-			osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
+			quitAllApps
 		fi
 	done
-	# we should have really logged out by now!
-}
+	
+	# thanks mm2270 (https://github.com/mm2270) for this technique! 
+	# move the standard lock logo out of lockscreen app (we don't want a big padlock)
+	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
+	if [ -f "$lockscreenlogo" ]
+	then
+		# perhaps we can point it at something already in the filesystem, or your own (needs black background... hmmm)
+		sips sips -s format jpeg --resampleWidth 512 "$lockscreenlogo" --o "$patchootmp/Lock.jpg"
+		mv "$patchootmp/Lock.jpg" /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
+	fi
+	# lock screen
+	/System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/MacOS/LockScreen & > /dev/null
+	sleep 1
+	# makes changes to cocoaDialog
+	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 0
+	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 3
+	chmod 644 "${cdialog}/Contents/Info.plist"
+
+	# put the lock screen logo back, in case system update does something to remotemanagement bundles
+	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
+
+	touch /tmp/.patchoo-logoutdone
+	installpid=$(cat /tmp/.patchoo-install-pid)
+	secho "fauxlogout done, screen locked (my pid: $$) waiting installs (pid: $installpid)..."
+	while ps -p $installpid > /dev/null
+	do
+		sleep 1
+	done
+	# putting it back order
+	rm /tmp/.patchoo-install-pid
+	rm /tmp/.patchoo-logoutdone
+	# undo changes to cocoaDialog
+	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 1
+	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 0
+	chmod 644 "${cdialog}/Contents/Info.plist"
+	# unlock and logout
+	killall LockScreen
+	logoutUser # the logout policy will handle recon / restart / shutdown requests
+
+)
+
 
 processLogout()
 {
-	if [ -f /tmp/.patchoo-install ]
+	if [ "$installsavail" == "Yes" ]
 	then
-		#  we are hitting this on log out and the user has selected to install
-		installSoftware
-	else
-		# normal log out, let's check if there are updates and prompt
-		if [ "$installsavail" == "Yes" ]
+		# if <10.9 we can use this can prompt outside a user session with cdialog
+		if displayatlogout
 		then
-			# prompt user
 			promptInstall --logoutinstallsavail
 			if [ -f /tmp/.patchoo-install ]
 			then
@@ -980,10 +1074,6 @@ processLogout()
 				# user chose later
 				return
 			fi
-		else
-			# no software waiting, normal logout
-			secho "no software to install, nuffin' to do."
-			return
 		fi
 	fi
 	
@@ -1072,9 +1162,14 @@ patchooStart()
 checkUpdatesSS()
 {
 	spawnScript
+	touch "$datafolder/.patchoo-selfservice-check"
 	secho "You will be notified if any installations are available" 4 "Checking for new software" "notice"
 	jamfPolicyUpdate
-	[ "$(defaults read "$prefs" InstallsAvail  2> /dev/null)" != "Yes" ] && displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
+	if [ -f "$datafolder/.patchoo-selfservice-check" ] # the flag is still here, no promptforupdates!
+	then
+		displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
+		rm "$datafolder/.patchoo-selfservice-check"
+	fi
 }
 
 promptInstallSS()
@@ -1163,8 +1258,8 @@ bootstrapUpdates()
 bootstrapSetup()
 {
 # write out a launchagent to call bootstrap helper
-cat > "$bootstrapagent" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
+
+bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1183,16 +1278,16 @@ cat > "$bootstrapagent" << EOF
         <string>--bootstraphelper</string>
 	</array>
 </dict>
-</plist>
-EOF
+</plist>'
 
+	echo "$bootstrappagentplist" > "$bootstrapagent"
 	# set permissions for agent
 	chown root:wheel "$bootstrapagent"
 	chmod 644 "$bootstrapagent"
 	# copy the script to local drive
 	cp "$0" /Library/Scripts/patchoo.sh
 	chown root:wheel /Library/Scripts/patchoo.sh
-	chmod 770 /Library/Scripts/patchoo.sh
+	chmod 700 /Library/Scripts/patchoo.sh
 	# unset any loginwindow autologin
 	defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser ""
 	secho "bootstrap setup done, you need to restart"
@@ -1228,7 +1323,7 @@ jamfRecon()
 	secho "jamf is running a recon..."
 	if [ "$1" == "--feedback" ]
 	then
-		( jamf recon ) | "$cdialog" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
+		( jamf recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
 	else
 		jamf recon
 	fi		
@@ -1241,7 +1336,7 @@ cleanUp()
 {
 	rm -R "$patchootmp"
 	[ -f "$jssgroupfile" ] && rm "$jssgroupfile" 	# cached group membership
-	[ "$spawned" == "--spawned" ] && rm $0 	#if we are spawned, eat ourself.
+	[ "$spawned" == "--spawned" ] && rm "$0" 	#if we are spawned, eat ourself.
 }
 
 ###########
@@ -1306,7 +1401,7 @@ case $mode in
 		# used internally by launchagent for loginwindow session
 		bootstrapHelper
 	;;
-	
+
 	*)
 		secho "malfunction. :/ - i don't know how to $mode"
 	;;
