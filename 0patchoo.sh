@@ -15,7 +15,7 @@
 #
 
 name="patchoo"
-version="0.993"
+version="0.9931"
 
 # read only api user please!
 apiuser="apiuser"
