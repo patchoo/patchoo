@@ -15,7 +15,7 @@
 #
 
 name="patchoo"
-version="0.9931"
+version="0.9932"
 
 # read only api user please!
 apiuser="apiuser"
@@ -1062,7 +1062,7 @@ processLogout()
 	if [ "$installsavail" == "Yes" ]
 	then
 		# if <10.9 we can use this can prompt outside a user session with cdialog
-		if displayatlogout
+		if $displayatlogout
 		then
 			promptInstall --logoutinstallsavail
 			if [ -f /tmp/.patchoo-install ]
