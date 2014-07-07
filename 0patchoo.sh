@@ -15,7 +15,7 @@
 #
 
 name="patchoo"
-version="0.9932"
+version="0.994"
 
 # read only api user please!
 apiuser="apiuser"
@@ -89,7 +89,7 @@ IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC 
 msgosupgradewarning="
 Your computer is peforming a major OSX upgrade.
 
-Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 60 minutes to complete. 
+Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete. 
 
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 
@@ -359,15 +359,31 @@ cachePkg()
 	pkgname=$(ls -t "/Library/Application Support/JAMF/Waiting Room/" | head -n 1 | grep -v .cache.xml)
 	if [ ! -f "$pkgdatafolder/$pkgname.caspinfo" ] && [ "$pkgname" != "" ]
 	then
+		pkgext=${pkgname##*.} 	# handle jss 9 zipped bundle pkgs
+		if [ "$pkgext" == "zip" ]
+		then
+			pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
+			pkgnamelookup=$(echo $pkgnamelesszip | sed -e 's/ /\+/g')
+		else
+			pkgnamelookup=$(echo $pkgname | sed -e 's/ /\+/g')
+		fi
 		# get pkgdata from the jss api
-		curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/packages/name/$(echo $pkgname | sed -e 's/ /\+/g') -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/packages/name/$pkgnamelookup -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
-		[ "$pkgdescription" == "<info />" ] && pkgdescription=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/') # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
+		if [ "$pkgdescription" == "<info />" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
+		then
+			if [ "$pkgext" == "zip" ]
+			then
+				pkgdescription=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/') 
+			else
+				pkgdescription=$(echo "$pkgnamelesszip" | sed 's/\(.*\)\..*/\1/')
+			fi
+		fi
 		echo "$pkgdescription" > "$pkgdatafolder/$pkgname.caspinfo"
 
 		# if it's flagged as an OS Upgrade (using createOSXInstallPkg), add osupgrade flag
-		[ "$option" == "--osupgrade" ] && touch "$pkgdatafolder/$pkgname.caspinfo.osupgrade"
+		[ "$option" == "--osupgrade" ] && touch "$pkgdatafolder/.os-upgrade"
 		secho "jamf has cached $pkgname"
 		secho "$pkgdescription" 2 "Downloaded" "globe"
 		# flag that we need a recon
@@ -382,7 +398,7 @@ cachePkg()
 				# query the JSS for the prereqpolicy
 				secho "$prereqreceipt is required and NOT found"
 				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-				prereqpolicyid=$(curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				prereqpolicyid=$(curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
@@ -397,6 +413,12 @@ cachePkg()
 
 checkASU()
 {
+	if [ -f "$pkgdatafolder/.os-upgrade" ]
+	then
+		secho "os upgrade is cached, skipping apple software updates.."
+		return
+	fi
+	
 	if $patchooasureleasemode
 	then
 		getGroupMembership
@@ -502,7 +524,6 @@ buildUpdateLists()
 		casppkg="${casppkg%\.*}"				#remove ext.
 		casppkgdescrip=$(cat "$infofile")
 		echo -e "${casppriority}\t${casppkg}\t${casppkgdescrip}" >> $casppkginfo
-		[ -f  "${infofile}.osupgrade" ] && touch "$pkgdatafolder/.os-upgrade"
 	done
 	
 	# if there is an OS Upgrade packge cached in the casper installs, skip the apple updates
@@ -1137,7 +1158,7 @@ getGroupMembership()
 	if [ ! -f "$jssgroupfile" ]
 	then
 		secho "getting computer group membership ..."
-		curl $curlopts -s -u $apiuser:$apipass ${jssurl}JSSResource/computers/macaddress/$macaddress | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
+		curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/computers/macaddress/$macaddress | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
 	fi
 	for checkgroup in ${jssgroup[@]}
 	do
