@@ -15,7 +15,7 @@
 #
 
 name="patchoo"
-version="0.994"
+version="0.9941"
 
 # read only api user please!
 apiuser="apiuser"
@@ -33,6 +33,9 @@ selfsignedjsscert=true
 # users can defer x update prompts
 defermode=true
 defaultdeferthresold="10"
+
+# REALLY forces a logout when defers run out
+nastymode=true
 
 # users running blocking apps will have x number of prompts delayed, ie will not run on prompt/remindto install until threshold is reached
 blockingappmode=true
@@ -876,6 +879,8 @@ promptInstall()
 						# if the defercounter has run out, FORCED INSTALLATION! set timeout to 30 minutes
 						dialogtimeout="1830"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Logout and Install...")
+						# if it's nastymode (tm) we Logout and Install no matter what
+						[ $nastymode ] && answer="Logout and Install..."
 						secho "FORCING INSTALL!"
 					else
 						# prompt user with defer option
