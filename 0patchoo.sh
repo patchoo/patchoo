@@ -99,7 +99,7 @@ IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC 
 iconsize="72"
 dialogtimeout="210"
 
-lockscreenlogo="" # used for fauxLogout (ARD LockScreen will display this, ensure a logo with black background)
+lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns" # used for fauxLogout (ARD LockScreen will display this) and bootstrap
 
 # log to the jamf log.
 logto="/var/log/"
@@ -1047,8 +1047,7 @@ fauxLogout()
 	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
 	if [ -f "$lockscreenlogo" ]
 	then
-		# perhaps we can point it at something already in the filesystem, or your own (needs black background... hmmm)
-		sips sips -s format jpeg --resampleWidth 512 "$lockscreenlogo" --o "$patchootmp/Lock.jpg"
+		sips -s format png --resampleWidth 512 "$lockscreenlogo" --out "$patchootmp/Lock.jpg"
 		mv "$patchootmp/Lock.jpg" /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
 	fi
 	# lock screen
@@ -1337,7 +1336,7 @@ bootstrapHelper()
 
 			$(date "+%H:%M:%S"): $message"
 			killall jamfHelper
-			"$jamfhelper" -windowType fs -description "$displaymsg" -icon "/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns" &
+			"$jamfhelper" -windowType fs -description "$displaymsg" -icon "$lockscreenlogo" &
 			sleep 2
 		fi
 	done
