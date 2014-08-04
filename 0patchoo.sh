@@ -886,14 +886,14 @@ promptInstall()
 						# prompt user with defer option
 						makeMessage ""
 						makeMessage "$msginstalllater"
-						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Logout and Install..." "Later ($deferremain remaining)")
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later ($deferremain remaining)" "Logout and Install...")
 						secho "deferral counter: $defercount, defer thresold: $deferthreshold"
 					fi
 				else
 						# if we don't have deferals enabled
 						makeMessage ""
 						makeMessage "$msginstalllater"
-						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Logout and Install..." "Later")
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later" "Logout and Install...")
 				fi	
 			else
 				# there something preventing a dialog, don't display anything, return the consolestatus
