@@ -1047,11 +1047,11 @@ fauxLogout()
 	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
 	if [ -f "$lockscreenlogo" ]
 	then
-		sips -s format png --resampleWidth 512 "$lockscreenlogo" --out "$patchootmp/Lock.jpg" & > /dev/null # it will throw an error about and png being name jpg
+		sips -s format png --resampleWidth 512 "$lockscreenlogo" --out "$patchootmp/Lock.jpg" 2> /dev/null # it will throw an error about and png being name jpg
 		mv "$patchootmp/Lock.jpg" /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
 	fi
 	# lock screen
-	/System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/MacOS/LockScreen & > /dev/null
+	/System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/MacOS/LockScreen & 2> /dev/null
 	sleep 1
 	# makes changes to cocoaDialog
 	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 0
