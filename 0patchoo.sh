@@ -366,9 +366,9 @@ cachePkg()
 		if [ "$pkgext" == "zip" ]
 		then
 			pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
-			pkgnamelookup=$(echo $pkgnamelesszip | sed -e 's/ /\+/g')
+			pkgnamelookup=$(echo "$pkgnamelesszip" | sed -e 's/ /\+/g')
 		else
-			pkgnamelookup=$(echo $pkgname | sed -e 's/ /\+/g')
+			pkgnamelookup=$(echo "$pkgname" | sed -e 's/ /\+/g')
 		fi
 		# get pkgdata from the jss api
 		curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/packages/name/$pkgnamelookup -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
@@ -1047,7 +1047,7 @@ fauxLogout()
 	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
 	if [ -f "$lockscreenlogo" ]
 	then
-		sips -s format png --resampleWidth 512 "$lockscreenlogo" --out "$patchootmp/Lock.jpg"
+		sips -s format png --resampleWidth 512 "$lockscreenlogo" --out "$patchootmp/Lock.jpg" & > /dev/null # it will throw an error about and png being name jpg
 		mv "$patchootmp/Lock.jpg" /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
 	fi
 	# lock screen
