@@ -9,13 +9,14 @@
 # patchoo somewhat emulates munki workflows and user experience for JAMF's Casper.
 #
 
-
+###################################
 #
 # start configurable settings
 #
+###################################
 
 name="patchoo"
-version="0.9941"
+version="0.995"
 
 # read only api user please!
 apiuser="apiuser"
@@ -41,8 +42,8 @@ nastymode=true
 blockingappmode=true
 defaultblockappthreshold="2" # if missed at lunch, then 2x2 hours later... should prompt in afternoon?
 
-# if these apps are running notifications will not be displayed, presentation apps ? 
-blockingapps=( "PowerPoint.app" "Keynote.app" )
+# if these apps are in the foreground notifications will not be displayed, presentation apps ? (check with names- sleep 5; osascript -e 'tell application "System Events"' -e 'set frontApp to name of first application process whose frontmost is true' -e 'end tell')
+blockingapps=( "Microsoft PowerPoint" "Keynote" )
 
 # this order will correspond to the updatetriggers and asurelease catalogs
 # eg. 	jssgroup[2]="patchooBeta"
@@ -69,13 +70,41 @@ asureleasecatalog[1]="dev"
 asureleasecatalog[2]="beta"
 
 #
+# patchooDeploy settings
+#
+pdusebuildea=true
+pdusedepts=true
+pdusebuildings=false
+
+pdsetcomputername=true # prompt to set computername
+
+# the name of your ext attribute to use as the patchooDeploy build identfier - a populated dropdown EA.
+pdbuildea="patchoo Build"
+
+# do you want to prompt the console user to set attributes post enrollment? (not possible post casper imaging)
+pdpromptprovisioninfo=true
+
+# this api user requires update/write access to computer records (somewhat risky putting in here - see docs) 
+# leaving blank will prompt console user for a jss admin account during attribute set (as above)
+pdapiadminname=""
+pdapiadminpass=""
+
+pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # this fake receipt internally, and to communicate back to the jss about different patchoo deploy states.
+
+#########################################
+#
 # configure user prompts and feedback.
 #
+#########################################
+
 msgtitlenewsoft="New Software Available"
 msgnewsoftware="The following new software is available"
 msginstalllater="(You can perform the installation later via Self Service)"
 msgnewsoftforced="The following software must be installed now!"
-msgbootstrap="Mac is being updated. Do not interrupt or power off."
+msgbootstrap="Mac is provisioning. Do not interrupt or power off."
+msgbootstapdeployholdingpattern="Awaiting provisioning information. Your admin has been notified."
+msgpatchoodeploywelcome="Welcome to patchoo deploy.
+We are gathering provisioning information"
 msgshortfwwarn="
 IMPORTANT: A firmware update will be installed.
 Ensure you connect AC power before starting the update process."
@@ -105,17 +134,25 @@ lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/In
 logto="/var/log/"
 log="jamf.log"
 
-#
-# end of configurable settings
-#
+##################################
+##################################
+##
+##  end of configurable settings
+##
+##################################
+##################################
 
 osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
+macaddress=$(networksetup -getmacaddress en0 | awk '{ print $3 }' | sed 's/:/./g')
 
-if [ ! -d "$cdialog" ]
-then
-	echo "FATAL: I can't find cocoadialog, stopping 'ere"
-	exit 1
-fi
+OLDIFS="$IFS"
+IFS=$'\n'
+
+#if [ ! -d "$cdialog" ]
+#then
+#	echo "FATAL: I can't find cocoadialog, stopping 'ere"
+#	exit 1
+#fi
 
 # command line paramaters
 mode="$4"
@@ -244,11 +281,6 @@ secho()
 			echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY-NODISPLAY: $title, $message" >> "$logto/$log"
 		fi
 	else
-		# if we are bootstrapping, we display over loginwindow fullscreen mode with the bootstrap helper... update the msg
-		if $bootstrapmode	
-		then
-			echo "$message" > /tmp/patchoo-loginmessage.tmp
-		fi
 		echo "$name: $message"
 		echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: $message" >> "$logto/$log"
 	fi
@@ -276,10 +308,9 @@ makeMessage()
 
 checkConsoleStatus()
 {
-	psauxout="$(ps aux)"
 	userloggedin="$(who | grep console | awk '{print $1}')"
 	consoleuser="$(ls -l /dev/console | awk '{print $3}')"
-	screensaver="$(echo $psauxout | grep ScreenSaverEngine | grep -v grep)"
+	screensaver="$(ps aux | grep [S]creenSaverEngine)"
 
 	if [ "$screensaver" != "" ]
 	then
@@ -304,11 +335,12 @@ checkConsoleStatus()
 
 	if $blockingappmode
 	then
-		# check for blocking apps
+		# get foreground app
+		fgapp=$(osascript -e "tell application \"System Events\"" -e "set frontApp to name of first application process whose frontmost is true" -e "end tell")
+		# check for blocking apps		
 		for app in ${blockingapps[@]}
 		do
-			appcheck="$(echo $psauxout | grep "$app" | grep -v grep)"
-			if [ "$appcheck" != "" ]
+			if [ "$app" == "$fgapp" ]
 			then
 				echo "BlockingApp: $app"
 				return
@@ -429,15 +461,12 @@ checkASU()
 	fi
 
 	swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
-	secho "checking for apple software updates..."
+	secho "checking for apple software updates ..."
 	softwareupdate -la > "$swupdateout"
 	# check if there are any updates
 	if [ "$(cat $swupdateout | grep "*")" != "" ]
 	then
 		# let's parse the updates
-		# set IFS to cr
-		OLDIFS="$IFS"
-		IFS=$'\n'
 		asupkgarray=( $(cat $swupdateout | grep "*" | cut -c6- ) )
 		asudescriptarray=( $(cat $swupdateout | grep -A2 "*" | grep -v "*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
 		i=0
@@ -457,7 +486,6 @@ checkASU()
 			fi
 			(( i ++ ))
 		done 
-		IFS=$OLDIFS
 
 		# check for restart required
 		if [ "$(cat $swupdateout | grep "\[restart\]")" != "" ]
@@ -507,7 +535,7 @@ setASUCatalogURL()
 		secho "setting asu CatalogURL to $swupdateurl"
 		defaults write /Library/Preferences/com.apple.SoftwareUpdate CatalogURL "$swupdateurl"
 	else
-		secho "no asu server set, using apple's..."
+		secho "no asu server set, using apple's ..."
 	fi
 }
 
@@ -663,7 +691,7 @@ installSoftware()
 				sleep 1
 				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required"
 				sleep 1
-			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Software" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
+			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Software" --text "Starting Installation..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
 	fi
 	
@@ -713,7 +741,7 @@ installSoftware()
 				sleep 1
 				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required"
 				sleep 1
-			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Apple Software Updates" --text "Starting Install..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
+			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Apple Software Updates" --text "Starting Installation..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
 	fi
 
@@ -769,7 +797,7 @@ promptInstall()
 	fi
 
 	# there are waiting updates ... make a message for the user prompt	
-	secho "prompting user ..."
+	secho "prompting user..."
 	message=""
 	
 	if [ -f "$casppkginfo" ]
@@ -992,7 +1020,7 @@ preInstallWarnings()
 
 logoutUser()
 {
-	secho "sending logout ..."
+	secho "sending logout..."
 	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
 }
 
@@ -1157,7 +1185,6 @@ jamfPolicyUpdate()
 getGroupMembership()
 {
 	groupid=0
-	macaddress=$(networksetup -getmacaddress en0 | awk '{ print $3 }' | sed 's/:/./g')
 	# jss group file, we cache this in a central location so we can minimise number of hits on the jss for an update session.
 	if [ ! -f "$jssgroupfile" ]
 	then
@@ -1248,9 +1275,9 @@ startup()
 	[ -f "$datafolder/.patchoo-recon-required" ] && jamfRecon
 }
 
-bootstrapUpdates()
+
+updateHandler()
 {
-	spawnScript
 	jamfRecon
 	jamfPolicyUpdate 
 	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null) 	# check if updates are avaialble
@@ -1272,12 +1299,351 @@ bootstrapUpdates()
 		installsavail=$(defaults read "$prefs" InstallsAvail 2> /dev/null)
 	done
 
-	# no more updates stop boottrap
-	secho "All updates installed, bootstrap complete!"
-	sleep 8
+	# no more updates stop bootstrap
+	if [ -f "${pddeployreceipt}" ]
+	then
+		touch "${pddeployreceipt}.updated" 	# touch a receipt, can be used for smartgroup notification
+		jamfRecon
+	fi
+	secho "update process complete!"
+	sleep 10
 	rm "$bootstrapagent"
 	rm /Library/Scripts/patchoo.sh
 	killall jamfHelper
+	# all done loginwindow is unlocked
+}
+
+#
+#  deploy functions
+#
+
+checkAndReadProvisionInfo()
+{
+	secho "reading provisioning info from jss..."
+	pdprovisiontmp="$patchootmp/patchooprovisioninfo.tmp"
+	[ -f "$pdprovisiontmp" ] && rm "$pdprovisiontmp"
+	
+	# read the values as required, if missing, return false
+	pdprovisioninfo=true	
+	if $pdusebuildea
+	then
+		patchoobuild=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extension_attributes | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
+		# error checking
+		echo "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
+		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
+	fi
+
+	if $pdusedepts
+	then
+		department=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location | xpath "//computer/location/department/text()" 2> /dev/null)
+		# error checking
+		echo "department:  $department" >> "$pdprovisiontmp"
+		[ "$department" == "" ] && pdprovisioninfo=false
+	fi
+
+	if $pdusebuildings
+	then
+		building=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location | xpath "//computer/location/building/text()" 2> /dev/null)
+		# error checkingx
+		echo "building:  $building" >> "$pdprovisiontmp"
+		[ "$building" == "" ] && pdprovisioninfo=false
+	fi
+
+	if $pdprovisioninfo
+	then
+		return 0
+	else
+		return 1
+	fi
+}
+
+choicePrompt()
+{
+	promptdata=$(osascript << EOF
+	tell app "System Events" to activate
+	set choicelist to every paragraph of (do shell script ("cat $choicetmp"))
+	set choice to {choose from list choicelist}
+	return choice
+	EOF
+	)
+	# error checking
+	echo "$(echo $promptdata | cut -d, -f2 | cut -d: -f2)"
+	rm "$choicetmp"
+}
+
+promptAndSetComputerName()
+{
+	# this computer must existing in the JSS... as we've been enrolled!
+	computername=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/general | xpath "//computer/general/name/text()" 2> /dev/null)
+	if $pdsetcomputername
+	then
+		secho "current computername is $computername"
+		validcomputername=false
+		until $validcomputername
+		do 
+			newcomputername=$(osascript -e "display dialog \"Please confirm this Mac's computername\" default answer \"$computername\" buttons {\"Confirm and Set\"} default button 1 giving up after 600" | cut -d, -f2 | cut -d: -f2)
+			if [ "$newcomputername" == "" ]
+			then
+				osascript -e "display dialog \"The computername can not be blank\" buttons {\"Oops\"} default button 1 giving up after 120"
+				continue
+			else
+				# lookup jss to ensure computername isn't in use
+				macaddresslookup=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/name/$(echo "$newcomputername" | sed -e 's/ /\+/g')/subset/general | xpath "//computer/general/mac_address/text()" 2> /dev/null | sed 's/:/./g' | tr '[:upper:]' '[:lower:]')
+				if [ "$macaddresslookup" == "" ] || [ "$macaddresslookup" == "$macaddress" ] # no entry, or our entry - ok to go
+				then
+					computername="$newcomputername"
+					validcomputername=true
+				else
+					# another computer with this name exists in the JSS
+					osascript -e "display dialog \"A Mac named $newcomputername already exists in the JSS.\" buttons {\"Oops\"} default button 1 giving up after 120"
+				fi
+			fi
+		done
+		# set the computername with scutil
+		secho "setting computername to $computername"
+		scutil --set ComputerName "$computername"
+		scutil --set LocalHostName "$computername"
+	fi
+}
+
+promptProvisionInfo()
+{
+	patchoobuildeatmp="$patchootmp/patchoobuildeatmp.xml"
+	depttmp="$patchootmp/depttmp.xml"
+	buildingtmp="$patchootmp/buildingtmp.xml"
+	choicetmp="$patchootmp/choicetmp.tmp"
+
+	# welcome message
+	# osascript
+
+	promptAndSetComputerName
+
+	if checkAndReadProvisionInfo
+	then
+		secho "prompting user to change provision info..."
+		provisiondetails=$(cat "$pdprovisiontmp")
+		changeprovisioninfoprompt=$(osascript -e "display dialog \"This Mac has the following provisioning information:
+
+$provisiondetails
+
+Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} default button 2 giving up after 600" | cut -d, -f1 | cut -d: -f2)
+		if [ "$changeprovisioninfoprompt" == "Continue Deployment" ]
+		then
+			deployready=true
+			return 0
+		fi
+	else
+		secho "provisioning information incomplete..."
+		skipprompt=$(osascript -e "display dialog \"This Mac has incomplete provisioning information\"  buttons {\"Set Provisioning Info...\",\"Skip\"} default button 2 giving up after 9999" | cut -d, -f1 | cut -d: -f2)
+		if [ "$skipprompt" == "Skip "]
+		then
+			deployready=true
+			return 0
+		fi
+	fi
+
+	if $pdusebuildea
+	then	
+		#read patchoobuilds
+		patchoobuildchoicearray=($(curl -k -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g') | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
+		# error checking
+		for line in "${patchoobuildchoicearray[@]}"
+		do
+		    echo "$line" >> "$choicetmp"
+		done
+		patchoobuildvalue="$(choicePrompt)"
+	fi
+
+	if $pdusedepts
+	then	
+		#read dept choices
+		deptchoicearray=($(curl -k -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		# error checking
+		for line in "${deptchoicearray[@]}"
+		do
+		    echo "$line" >> "$choicetmp"
+		done
+		deptvalue="$(choicePrompt)"
+	fi
+
+	if $pdusebuildings
+	then
+		#read building choices
+		buildingchoicearray=($(curl -k -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		for line in "${buildingchoicearray[@]}"
+		do
+		    echo "$line" >> "$choicetmp"
+		done
+		buildingvalue="$(choicePrompt)"
+	fi
+
+	# write out xml for put to api
+	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
+<computer>
+<extension_attributes>
+<attribute>
+<name>$pdbuildea</name>
+<value>$patchoobuildvalue</value>
+</attribute>
+</extension_attributes>
+</computer>
+" > "$patchoobuildeatmp"
+	
+	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
+<computer>
+<location>
+<department>$deptvalue</department>
+</location>
+</computer>
+" > "$depttmp"
+	
+	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
+<computer>
+<location>
+<building>$buildingvalue</building>
+</location>
+</computer>
+" > "$buildingtmp"
+
+	while true
+	do
+		if [ "$pdapiadminname" == "" ]
+		then
+			tmpapiadminuser=$(osascript -e "display dialog \"Please enter your JSS admin username:\" default answer \"\" buttons {\"OK\"} default button 1 giving up after 9999" | cut -d, -f2 | cut -d: -f2)
+		else
+			tmpapiadminuser="$pdapiadminname"
+		fi		
+		if [ "$pdapiadminpass" == "" ]
+		then	
+			tmpapiadminpass=$(osascript -e "display dialog \"Please enter your JSS admin password:\" default answer \"\" buttons {\"OK\"} default button 1 giving up after 9999 with hidden answer"| cut -d, -f2 | cut -d: -f2)
+		else
+			tmpapiadminpass="$pdapiadminpass"
+		fi
+		
+		# put the xml to api
+		retryauth=false
+
+		if $pdusebuildea
+		then
+			putresult=$(curl $curlopts -s -u "$tmpapiadminuser":"$tmpapiadminpass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extensionattributes -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
+			[ "$putresult" != "" ] && retryauth=true
+		fi
+
+		if $pdusedepts
+		then
+			putresult=$(curl $curlopts -s -u "$tmpapiadminuser":"$tmpapiadminpass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location -T "$depttmp" -X PUT | grep "requires user authentication")
+		fi
+
+		if $pdusebuildings
+		then
+			putresult=$(curl $curlopts -s -u "$tmpapiadminuser":"$tmpapiadminpass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location -T "$buildingtmp" -X PUT | grep "requires user authentication")
+			[ "$putresult" != "" ] && retryauth=true
+		fi
+
+		if $retryauth
+		then
+			tryagain=$(osascript -e "display dialog \"The admin username or password was incorrect\"  buttons {\"Skip set provisioning info\",\"Try Again\"} default button 2 giving up after 9999" | cut -d, -f1 | cut -d: -f2)
+			[ "$tryagain" == "Try Again" ] && continue # loop again
+		fi
+		# if we are here, all good to go
+		deployready=true
+		break
+	done
+}
+
+deploySetup()
+{
+	# run on enrollment complete, setups up deploy process
+	secho "setting up patchoo deploy .."
+	touch "$pddeployreceipt"
+	deployready=false
+
+	if [ "$(checkConsoleStatus)" != "userloggedin" ] # if we don't have a logged in user, we are probably running post casper imaging or quickadd is pushed, so it's unpossible to prompt for info... skip..
+	then
+		secho "no user console session, we can't prompt for provisioning info"
+		deployready=true
+	fi
+
+	osascript -e "display dialog \"$msgpatchoodeploywelcome\"  buttons {\"...\"} default button 1 giving up after 5"
+
+	until $deployready
+	do
+		if $pdpromptprovisioninfo
+		then
+			# prompt the console user and update the jss
+			promptProvisionInfo
+		else
+			# we don't prompt, this mac will go into the holding pattern on reboot if it doesn't have provision info
+			deployready=true
+		fi
+	done
+
+	bootstrapSetup # setup bootstrap bits
+
+	secho "patchoo deploy is ready"
+	
+	if [ "$(checkConsoleStatus)" == "userloggedin" ] # if a user is logged in, prompt and restart... otherwise we'll sort that via a launchd or other method
+	then
+		osascript -e "display dialog \"Ready to provison. This Mac will restart in 2 minutes\"  buttons {\"Restart Now\"} default button 1 giving up after 120"
+		#logoutUser
+		#sleep 10 # not pretty
+		reboot &
+	fi
+}
+
+deployHandler()
+{
+	# start patchooDeploy, read provision info and loop until we have it
+	secho "starting deployment..."
+	until checkAndReadProvisionInfo
+	do
+		# if we don't have provisioning info, check flag
+		if [ ! -f "${pddeployreceipt}.holdingpattern" ]
+		then
+			# write receipt, and recon so mac lands in holding patt group and admin gets notification
+			touch "${pddeployreceipt}.holdingpattern"
+			jamfRecon
+		fi
+		secho "$msgbootstapdeployholdingpattern"
+		sleep 60 # waiting 60 secs and try again
+	done
+
+	#remove the flag
+	[ -f "${pddeployreceipt}.holdingpattern" ] && rm "${pddeployreceipt}.holdingpattern"
+
+	secho "provision information complete, starting deployment ..."
+	sleep 3
+	# recon ?
+	secho "firing deploy trigger ..."
+	jamf policy -trigger deploy
+	if $pdusebuildea
+	then
+		secho "firing deploy-${patchoobuild} trigger ..."
+		jamf policy -trigger deploy-${patchoobuild}	# calling our build specific trigger eg. deploy-management, deploy-studio
+	fi
+	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null)  # are installations cached by patchoo polcies, during our deploy?
+	if [ "$installsavail" == "Yes" ]
+	then
+		installSoftware
+	fi
+	# deploy finished, rebooting to start update
+	secho "deployment process has finished, restarting to start update process ..."
+	rm "$pddeployreceipt"
+	touch "${pddeployreceipt}.done"
+	sleep 10
+	reboot &
+}
+
+bootstrap()
+{
+	spawnScript
+	# this starts the bootstrap deploy and update process.
+	if [ -f "$pddeployreceipt" ] && [ ! -f "${pddeployreceipt}.done" ]
+	then
+		deployHandler
+	else
+		updateHandler
+	fi
 }
 
 bootstrapSetup()
@@ -1323,29 +1689,25 @@ bootstrapHelper()
 	# patchoo bootstrap helper
 	#
 	jamf policy -trigger bootstrap
-	# message for loginwindow
-	echo "running a recon..." > /tmp/patchoo-loginmessage.tmp
 	while [ -f "$bootstrapagent" ]	# whilst the agent exists, we are in bootstrap mode
 	do
-		newmessage="$(cat /tmp/patchoo-loginmessage.tmp)"
+		newmessage="$(tail -n1 /var/log/jamf.log | cut -d' ' -f 4- | sed -e $'s/: /\\\n/g')"
 		if [ "$message" != "$newmessage" ]
 		then
 			message="$newmessage"
-			displaymsg="$computername
-			$msgbootstrap
+			displaymsg="$msgbootstrap
 
-			$(date "+%H:%M:%S"): $message"
+$message"
 			killall jamfHelper
 			"$jamfhelper" -windowType fs -description "$displaymsg" -icon "$lockscreenlogo" &
 			sleep 2
 		fi
 	done
-	rm /tmp/patchoo-loginmessage.tmp
 }
 
 jamfRecon()
 {
-	secho "jamf is running a recon..."
+	secho "jamf is running a recon ..."
 	if [ "$1" == "--feedback" ]
 	then
 		( jamf recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
@@ -1362,6 +1724,7 @@ cleanUp()
 	rm -R "$patchootmp"
 	[ -f "$jssgroupfile" ] && rm "$jssgroupfile" 	# cached group membership
 	[ "$spawned" == "--spawned" ] && rm "$0" 	#if we are spawned, eat ourself.
+	IFS=$OLDIFS
 }
 
 ###########
@@ -1397,11 +1760,13 @@ case $mode in
 	;;
 
 	"--remind" )
-		remindInstall # run on every120
+		# run on every120
+		remindInstall
 	;;
 
 	"--startup" )
-		startup 	#run on startup, recon if we've just installed updates that required a reboot
+		#run on startup, recon if we've just installed updates that required a reboot
+		startup
 	;;
 	
 	"--logout" )
@@ -1414,17 +1779,30 @@ case $mode in
 		patchooStart
 	;;
 
-	"--bootstrap" )
-		bootstrapUpdates
-	;;
-
 	"--bootstrapsetup" )
 		bootstrapSetup
+		# setups up the bootstrap launchagent, copies script and turns off autologin
 	;;
 
 	"--bootstraphelper" )
-		# used internally by launchagent for loginwindow session
+		# used internally by launchagent for loginwindow session, drives the loginwindow messages
 		bootstrapHelper
+	;;
+
+	"--bootstrap" )
+		# called by the launch agent, drives the bootstrap process (deploy and updates)
+		bootstrap
+	;;
+
+	"--deploysetup" )
+		# setups up deployment, run on enrollment complete
+		deploySetup
+	;;
+
+	"--deploygroup" )
+		# group deploy policies together - paramters are executed - pass either policies or triggers
+		# coming soon....
+		deploygroup="$4"
 	;;
 
 	*)
