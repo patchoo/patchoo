@@ -6,11 +6,9 @@
 	<string>com.github.patchoo-deploysetup</string>
 	<key>RunAtLoad</key>
 	<true/>
-	<key>UserName</key>
-	<string>root</string>
 	<key>ProgramArguments</key>
 	<array>
-        <string>/Library/Scripts/patchooDeploySetup.sh</string>
+		<string>/Library/Scripts/patchooDeploySetup.sh</string>
 	</array>
 </dict>
 </plist>

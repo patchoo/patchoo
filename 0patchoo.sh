@@ -1688,10 +1688,18 @@ bootstrapHelper()
 {
 	# patchoo bootstrap helper
 	#
+
+	secho "waiting for jss.."
+	until jamf checkJSSConnection
+	do
+		sleep 3
+	done
+
 	jamf policy -trigger bootstrap
+
 	while [ -f "$bootstrapagent" ]	# whilst the agent exists, we are in bootstrap mode
 	do
-		newmessage="$(tail -n1 /var/log/jamf.log | cut -d' ' -f 4- | sed -e $'s/: /\\\n/g')"
+		newmessage="$(tail -n1 /var/log/jamf.log | cut -d' ' -f 4- | sed -e $'s/: /\\\n\\\n/g')"
 		if [ "$message" != "$newmessage" ]
 		then
 			message="$newmessage"
@@ -1700,7 +1708,7 @@ bootstrapHelper()
 $message"
 			killall jamfHelper
 			"$jamfhelper" -windowType fs -description "$displaymsg" -icon "$lockscreenlogo" &
-			sleep 2
+			sleep 3
 		fi
 	done
 }

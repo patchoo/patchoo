@@ -18,8 +18,12 @@ echo "firing deploysetup trigger.."
 jamf policy -trigger deploysetup
 
 rm /Library/LaunchDaemons/com.github.patchoo-deploysetup.plist
+rm /Library/LaunchAgents/com.github.patchoo-deploysetuploginlock.plist
 rm "$0"
 
-jamf reboot -immediately
+# unlock loginwindow
+killall jamfHelper
+
+reboot
 
 exit 0

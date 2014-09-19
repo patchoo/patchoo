@@ -28,14 +28,27 @@ Documentation
 	* [Deploying Standalone or Drag and Drop Installers](deploying_standalone_Installers.md)
 	* [Deploying Chained Incremental Patches](deploying_chained_incremental_patches.md)
 	* [Deploying Major OSX Upgrades](deploying_major_osx_upgrades.md)
-* Bootstrap Mode
-	* [Bootstrap Overview](bootstrap_overview.md)
-	* [Setup Bootstrap Policies](setup_bootstrap_policies.md)
-	* [Using Bootstrap post Casper Imaging](using_bootstrap_post_casper_imaging.md) 
 * Advanced Patchoo!
-	* [Advanced patchoo Overview](advanced_patchoo_overview.md) 
+ 	* [Advanced patchoo Overview](advanced_patchoo_overview.md) 
 	* [Setup Computer Deployment Groups](setup_computer_deployment_groups.md)
 	* [Setup patchooSWReleaseMode](setup_patchooswreleasemode.md)
 	* [Setup patchooASUReleaseMode](setup_patchooasureleasemode.md)
 
+* Bootstrap Mode
+	* [Bootstrap Overview](bootstrap_overview.md) ***
+	* [Setup Bootstrap Policies](setup_bootstrap_policies.md)
 
+* Patchoo Deploy - ***ALPHA***
+	* [Patchoo Deploy Overview](patchoo_deploy_overview.md)
+	* [Setup Patchoo Deploy](setup_pd_script.md)
+	* [Setup Patchoo Deploy Policy](setup_pd_policy.md)
+	* [Setup Patchoo Deploy Ext Attribute](setup_pd_ea.md)
+	* [Setup Patchoo Deploy Smart Groups](setup_pd_smart_groups.md)
+	* [Using Patchoo Deploy](using_pd.md)
+	* [Using Patchoo deploy groups](pd_deploy_groups.md) - coming soon
+	
+	
+	
+	
+	
+	*** indicates some slight out of date documentation.
