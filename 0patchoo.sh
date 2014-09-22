@@ -310,7 +310,7 @@ checkConsoleStatus()
 {
 	userloggedin="$(who | grep console | awk '{print $1}')"
 	consoleuser="$(ls -l /dev/console | awk '{print $3}')"
-	screensaver="$(ps aux | grep [S]creenSaverEngine)"
+	screensaver="$(ps aux | grep "[S]creenSaverEngine")"
 
 	if [ "$screensaver" != "" ]
 	then
@@ -877,7 +877,7 @@ promptInstall()
 			# we need to prompt them at some stage.
 			if $blockingappmode
 			then
-				if [ "$(echo $consolestatus | grep BlockingApp)" != "" ]
+				if [ "$(echo $consolestatus | grep "BlockingApp:")" != "" ]
 				then
 					blockremain=$(( $blockappthreshold - blockappcount ))
 					if [ $blockremain -eq 0 ]
