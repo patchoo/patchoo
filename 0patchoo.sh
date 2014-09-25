@@ -310,7 +310,7 @@ checkConsoleStatus()
 {
 	userloggedin="$(who | grep console | awk '{print $1}')"
 	consoleuser="$(ls -l /dev/console | awk '{print $3}')"
-	screensaver="$(ps aux | grep "[S]creenSaverEngine")"
+	screensaver="$(ps aux | grep ScreenSaverEngine | grep -v grep)"
 
 	if [ "$screensaver" != "" ]
 	then
@@ -336,7 +336,7 @@ checkConsoleStatus()
 	if $blockingappmode
 	then
 		# get foreground app
-		fgapp=$(osascript -e "tell application \"System Events\"" -e "set frontApp to name of first application process whose frontmost is true" -e "end tell")
+		fgapp=$(sudo -u $userloggedin osascript -e "tell application \"System Events\"" -e "return name of first application process whose frontmost is true" -e "end tell")
 		# check for blocking apps		
 		for app in ${blockingapps[@]}
 		do
@@ -1634,6 +1634,27 @@ deployHandler()
 	reboot &
 }
 
+deployGroup()
+{
+	secho "running deploygroup items..."
+	while [[ $# > 0 ]]
+	do
+ 		triggerorpolicy="$1"
+ 		shift
+ 		secho "looking up $triggerorpolicy against jss..."
+		policyid=$(curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/policies/name/$(echo $triggerorpolicy | sed -e 's/ /\+/g') -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+		if [ "$policyid" != "" ]
+		then
+			secho "jamf calling policy id $policyid"
+			jamf policy -id $policyid
+		else
+			# if there's no id, lets call a trigger
+			secho "jamf firing trigger $triggerorpolicy"
+			jamf policy -trigger $(echo $triggerorpolicy | sed -e 's/ /\_/g')
+		fi
+	done
+}
+
 bootstrap()
 {
 	spawnScript
@@ -1809,8 +1830,7 @@ case $mode in
 
 	"--deploygroup" )
 		# group deploy policies together - paramters are executed - pass either policies or triggers
-		# coming soon....
-		deploygroup="$4"
+		deployGroup "$5" "$6" "$7" "$8" "$9" "$10" "$11"
 	;;
 
 	*)

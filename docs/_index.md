@@ -45,7 +45,7 @@ Documentation
 	* [Setup Patchoo Deploy Ext Attribute](setup_pd_ea.md)
 	* [Setup Patchoo Deploy Smart Groups](setup_pd_smart_groups.md)
 	* [Using Patchoo Deploy](using_pd.md)
-	* [Using Patchoo deploy groups](pd_deploy_groups.md) - coming soon
+	* [Using Patchoo deploy groups](pd_deploy_groups.md) ** new**
 	
 	
 	
