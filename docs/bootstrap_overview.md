@@ -1,6 +1,8 @@
 Bootstrap Overview
 ------------------
 
+*** This documentation needs to be updated, this describes the update loop in a bootstrap, now with patchoo Deploy this process is run post deploy --- bootstrap is the term given to both the deploy and update loop process ***
+
 Bootstrap mode is optional, but can be used to compensate to for version drift in your Casper Imaging configurations. It's designed to be run post first reboot after a Casper Imaging session.
 
 It basically:
