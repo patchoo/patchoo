@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.995"
+version="0.9952"
 
 # read only api user please!
 apiuser="apiuser"
@@ -270,15 +270,14 @@ secho()
 
 	if [ "$timeout" != "" ]
 	then
+		echo "$name: USERNOTIFY: $title, $message"
+		echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY: $title, $message" >> "$logto/$log"			
+
 		if [ "$(checkConsoleStatus)" == "userloggedin" ]
 		then
-			echo "$name: USERNOTIFY:: $title, $message"
-			echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY: $title, $message" >> "$logto/$log"			
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
 			"$cdialogbin" bubble --title "$title" --text "$message" --icon $icon --timeout $timeout &
-		else
-			echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY-NODISPLAY: $title, $message" >> "$logto/$log"
 		fi
 	else
 		echo "$name: $message"
@@ -354,11 +353,11 @@ checkConsoleStatus()
 
 checkProcess()
 {
-	if [ "$(ps aux | grep "$1" | grep -v grep)" == "" ]
+	if [ "$(ps aux | grep "$1" | grep -v grep)" != "" ]
 	then
-		echo "no"
+		return 0
 	else
-		echo "yes"
+		return 1
 	fi
 }
 
@@ -1413,9 +1412,6 @@ promptProvisionInfo()
 	buildingtmp="$patchootmp/buildingtmp.xml"
 	choicetmp="$patchootmp/choicetmp.tmp"
 
-	# welcome message
-	# osascript
-
 	promptAndSetComputerName
 
 	if checkAndReadProvisionInfo
@@ -1532,6 +1528,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 		if $pdusedepts
 		then
 			putresult=$(curl $curlopts -s -u "$tmpapiadminuser":"$tmpapiadminpass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location -T "$depttmp" -X PUT | grep "requires user authentication")
+			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusebuildings
@@ -1641,16 +1638,19 @@ deployGroup()
 	do
  		triggerorpolicy="$1"
  		shift
- 		secho "looking up $triggerorpolicy against jss..."
-		policyid=$(curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/policies/name/$(echo $triggerorpolicy | sed -e 's/ /\+/g') -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
-		if [ "$policyid" != "" ]
-		then
-			secho "jamf calling policy id $policyid"
-			jamf policy -id $policyid
-		else
-			# if there's no id, lets call a trigger
-			secho "jamf firing trigger $triggerorpolicy"
-			jamf policy -trigger $(echo $triggerorpolicy | sed -e 's/ /\_/g')
+ 		if [ "$triggerorpolicy" != "" ]
+ 		then
+	 		secho "looking up $triggerorpolicy against jss..."
+			policyid=$(curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/policies/name/$(echo $triggerorpolicy | sed -e 's/ /\+/g') -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+			if [ "$policyid" != "" ]
+			then
+				secho "jamf calling policy id $policyid"
+				jamf policy -id $policyid
+			else
+				# if there's no id, lets call a trigger
+				secho "jamf firing trigger $triggerorpolicy"
+				jamf policy -trigger $(echo $triggerorpolicy | sed -e 's/ /\_/g')
+			fi
 		fi
 	done
 }
@@ -1709,19 +1709,48 @@ bootstrapHelper()
 {
 	# patchoo bootstrap helper
 	#
+	# lock immediately
+	"$jamfhelper" -windowType fs -description "$msgbootstrap" -icon "$lockscreenlogo" &
+
+	# the local helper will handle caffination and enforcing management in case jss not reachable immediately
+
+	# caffeinate this mac (? 10.7 ?)
+	caffeinate -d -i -m -u &
+	caffeinatepid=$!
 
 	secho "waiting for jss.."
 	until jamf checkJSSConnection
 	do
-		sleep 3
+		sleep 2
 	done
 
+	killall jamfHelper
+
+	# trigger the bootstrap policy
 	jamf policy -trigger bootstrap
+
+	# these messages will be ignored in the jamf.log, the previous entry will be displayed at the lockscreen
+	ignoremessages=("The management framework will be enforced" "Checking for policies triggered by")
 
 	while [ -f "$bootstrapagent" ]	# whilst the agent exists, we are in bootstrap mode
 	do
-		newmessage="$(tail -n1 /var/log/jamf.log | cut -d' ' -f 4- | sed -e $'s/: /\\\n\\\n/g')"
-		if [ "$message" != "$newmessage" ]
+		tailvalue=1
+		newmessage=""
+		while [ "$newmessage" == "" ]
+		do
+			newmessage="$(tail -n${tailvalue} /var/log/jamf.log | head -n1 | cut -d' ' -f 4- | sed -e $'s/: /\\\n\\\n/g')"
+			for ignoremessage in ${ignoremessages[@]}
+			do
+				if [ "$(echo "$newmessage" | grep "$ignoremessage")" != "" ]
+				then
+					# we've found an ignore message, bounce up an entry.
+					newmessage=""
+					(( tailvalue ++ ))
+				fi
+			done
+		done
+
+		if [ "$message" != "$newmessage" ] # if the message has updated, change login screen
 		then
 			message="$newmessage"
 			displaymsg="$msgbootstrap
@@ -1729,9 +1758,12 @@ bootstrapHelper()
 $message"
 			killall jamfHelper
 			"$jamfhelper" -windowType fs -description "$displaymsg" -icon "$lockscreenlogo" &
-			sleep 3
 		fi
+		sleep 3 # check for new message every 3 seconds
 	done
+	
+	# uncaffeninate
+	kill $caffeinatepid
 }
 
 jamfRecon()
@@ -1830,7 +1862,7 @@ case $mode in
 
 	"--deploygroup" )
 		# group deploy policies together - paramters are executed - pass either policies or triggers
-		deployGroup "$5" "$6" "$7" "$8" "$9" "$10" "$11"
+		deployGroup "$5" "$6" "$7" "$8" "$9" "${10}" "${11}"
 	;;
 
 	*)
