@@ -744,6 +744,9 @@ installSoftware()
 		fi
 	fi
 
+	# flag for a recon since we've installed
+	touch "$datafolder/.patchoo-recon-required"
+
 	# check for restart
 	if [ -f "$pkgdatafolder/.restart-required" ]
 	then
@@ -1130,14 +1133,16 @@ processLogout()
 	fi
 	
 	# process a restart or shutdown
-	if [ -f /tmp/.patchoo-restart ] || [ -f /tmp/.patchoo-shutdown ]
+	if [ -f "$datafolder/.patchoo-recon-required" ]
 	then
-		# run on recon on reboot
-		secho "flagged for a post boot recon"
-		touch "$datafolder/.patchoo-recon-required"
-	else
-		# otherwise no restart required, we can do it in the background whilst user logs back in
-		jamfRecon &
+		if [ -f /tmp/.patchoo-restart ] || [ -f /tmp/.patchoo-shutdown ]
+		then
+			# run on recon on reboot
+			secho "flagged for a post boot recon"
+		else
+			# otherwise no restart required, we can do it in the background whilst user logs back in
+			jamfRecon &
+		fi
 	fi
 	
 	if [ -f /tmp/.patchoo-restart-forced ]
