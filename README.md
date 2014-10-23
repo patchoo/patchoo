@@ -72,9 +72,9 @@ Help out!
 ---------
 
 
-If you want to help in any way please reach out via email or jump onto GitHub.
+If you want to help in any way please reach out via email or submit some pull requests.
 
-If you find it useful and want to say thank you, link up on LinkedIn, tell me how and where you are using it, and write me a recommendation whilst you are there! [http://au.linkedin.com/in/lachlanstewart](http://au.linkedin.com/in/lachlanstewart)
+If you find it useful and want to say thank you, link up on LinkedIn, and tell me how and where you are using it. [http://au.linkedin.com/in/lachlanstewart](http://au.linkedin.com/in/lachlanstewart)
 
   
 ###Enjoy Patchoo!###
