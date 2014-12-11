@@ -16,11 +16,11 @@
 ###################################
 
 name="patchoo"
-version="0.9952"
+version="0.9953"
 
 # read only api user please!
 apiuser="apiuser"
-apipass="apipassword"
+apipass="apipass"
 
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
@@ -335,7 +335,7 @@ checkConsoleStatus()
 	if $blockingappmode
 	then
 		# get foreground app
-		fgapp=$(sudo -u $userloggedin osascript -e "tell application \"System Events\"" -e "return name of first application process whose frontmost is true" -e "end tell")
+		fgapp=$(sudo -u $userloggedin osascript -e "tell application \"System Events\"" -e "return name of first application process whose frontmost is true" -e "end tell"  2> /dev/null) # avoid errors in log
 		# check for blocking apps		
 		for app in ${blockingapps[@]}
 		do
@@ -393,19 +393,13 @@ cachePkg()
 	pkgname=$(ls -t "/Library/Application Support/JAMF/Waiting Room/" | head -n 1 | grep -v .cache.xml)
 	if [ ! -f "$pkgdatafolder/$pkgname.caspinfo" ] && [ "$pkgname" != "" ]
 	then
-		pkgext=${pkgname##*.} 	# handle jss 9 zipped bundle pkgs
-		if [ "$pkgext" == "zip" ]
-		then
-			pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
-			pkgnamelookup=$(echo "$pkgnamelesszip" | sed -e 's/ /\+/g')
-		else
-			pkgnamelookup=$(echo "$pkgname" | sed -e 's/ /\+/g')
-		fi
+		pkgext=${pkgname##*.} 	# handle zipped bundle pkgs
+		[ "$pkgext" == "zip" ] && pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 		# get pkgdata from the jss api
-		curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/packages/name/$pkgnamelookup -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/packages/name/$pkgname -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
-		if [ "$pkgdescription" == "<info />" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
+		if [ "$pkgdescription" == "<info />" ] || [ "$pkgdescription" == "" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
 		then
 			if [ "$pkgext" == "zip" ]
 			then
