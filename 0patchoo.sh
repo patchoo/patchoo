@@ -1430,7 +1430,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	else
 		secho "provisioning information incomplete..."
 		skipprompt=$(osascript -e "display dialog \"This Mac has incomplete provisioning information\"  buttons {\"Set Provisioning Info...\",\"Skip\"} default button 2 giving up after 9999" | cut -d, -f1 | cut -d: -f2)
-		if [ "$skipprompt" == "Skip "]
+		if [ "$skipprompt" == "Skip" ]
 		then
 			deployready=true
 			return 0
