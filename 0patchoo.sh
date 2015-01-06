@@ -457,11 +457,11 @@ checkASU()
 	secho "checking for apple software updates ..."
 	softwareupdate -la > "$swupdateout"
 	# check if there are any updates
-	if [ "$(cat "$swupdateout" | grep "*")" != "" ]
+	if [ "$(cat "$swupdateout" | grep \*)" != "" ]
 	then
 		# let's parse the updates
-		asupkgarray=( $(cat "$swupdateout" | grep "*" | cut -c6- ) )
-		asudescriptarray=( $(cat "$swupdateout" | grep -A2 "*" | grep -v "*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
+		asupkgarray=( $(cat "$swupdateout" | grep \* | cut -c6- ) )
+		asudescriptarray=( $(cat "$swupdateout" | grep -A2 \* | grep -v \* | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
 		i=0
 		for asupkg in ${asupkgarray[@]} 
 		do
