@@ -109,7 +109,7 @@ msgshortfwwarn="
 IMPORTANT: A firmware update will be installed.
 Ensure you connect AC power before starting the update process."
 msgshortoswarn="
-IMPORTANT: A major OSX upgrade will be performed.
+IMPORTANT: A major OS X upgrade will be performed.
 Ensure you connect AC power before starting the update process.
 It could take up to 90 minutes to complete."
 msgfirmwarewarning="
@@ -119,7 +119,7 @@ Please ensure you are connected to AC Power! Do NOT touch any keys or the power 
 
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 msgosupgradewarning="
-Your computer is peforming a major OSX upgrade.
+Your computer is peforming a major OS X upgrade.
 
 Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete. 
 
@@ -142,7 +142,7 @@ log="jamf.log"
 ##################################
 ##################################
 
-osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
+osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need patch version
 macaddress=$(networksetup -getmacaddress en0 | awk '{ print $3 }' | sed 's/:/./g')
 
 OLDIFS="$IFS"
@@ -521,7 +521,7 @@ setASUCatalogURL()
 				swupdateurl="$asuserver/content/catalogs/others/index-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
 				;;
 			*)
-				secho "I can't do this osx version.. sadface."
+				secho "I can't do this OS X version.. sadface."
 				return
 				;;
 		esac
