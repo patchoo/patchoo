@@ -309,7 +309,7 @@ checkConsoleStatus()
 {
 	userloggedin="$(/usr/bin/stat -f%Su /dev/console)"
 	consoleuser="$(ls -l /dev/console | awk '{print $3}')"
-	screensaver="$(ps aux | grep ScreenSaverEngine | grep -v grep)"
+	screensaver="$(pgrep ScreenSaverEngine)"
 
 	if [ "$screensaver" != "" ]
 	then
@@ -353,7 +353,7 @@ checkConsoleStatus()
 
 checkProcess()
 {
-	if [ "$(ps aux | grep "$1" | grep -v grep)" != "" ]
+	if [ "$(pgrep "$1")" != "" ]
 	then
 		return 0
 	else
