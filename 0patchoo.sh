@@ -176,7 +176,7 @@ jssgroupfile="$datafolder/$name-jssgroups.tmp"
 computername=$(scutil --get ComputerName)
 jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url" 2> /dev/null)
 
-daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
+daystamp=$(( $(date +%s) / 86400 )) # days since 1-1-70
 
 # due to issue with cocoaDialog outside of user session, this check as been added
 case $osxversion in	
@@ -661,7 +661,7 @@ installSoftware()
 				# use cocoadialog for gui
 				currentpercent=0
 				casptotal=$(cat "$casppkginfo" | wc -l)
-				total=$(( $casptotal * 100 ))		 		
+				total=$(( casptotal * 100 ))		 		
 		 		while read line
 		 		do
 					casppkgdescrip=$(echo "$line" | cut -f3)
@@ -670,8 +670,8 @@ installSoftware()
 					# we are fudging a progress bar, count up to 100, increase bar, until done, then 
 					for (( perfectcount=1; perfectcount<=100; perfectcount++ ))
 					do
-						percent=$(( ( (perfectcount + currentpercent) * 100 ) / $total ))
-						(( $percent == 100 )) && percent=99	# we don't want out progressbar to finish prematurely
+						percent=$(( ( (perfectcount + currentpercent) * 100 ) / total ))
+						(( percent == 100 )) && percent=99	# we don't want out progressbar to finish prematurely
 						echo "$percent Installing $casppkgdescrip ..."
 						kill -0 "$caspinstallpid" 2> /dev/null
 						[ "$?" != "0" ] && break # if it's done, break
@@ -705,7 +705,7 @@ installSoftware()
 			(
 				currentpercent=0
 				asutotal=$(cat "$asupkginfo" | wc -l)
-				total=$(( $asutotal * 100 ))
+				total=$(( asutotal * 100 ))
 
 				while read line
 				do
@@ -724,7 +724,7 @@ installSoftware()
 						sleep 1
 						# get percent to update progressbar
 						percentout=$(cat "$swupdateout" | grep "Progress:" | tail -n1 | awk '{print $2}' | sed 's/\%//g') 
-						percent=$(( ( (percentout + currentpercent) * 100 ) / $total ))
+						percent=$(( ( (percentout + currentpercent) * 100 ) / total ))
 						echo "$percent Installing $asupkgdescrip ..."
 					done
 					currentpercent=$(( currentpercent + 100 )) # add another 100 for each completed install
@@ -875,7 +875,7 @@ promptInstall()
 			then
 				if [ "$(echo "$consolestatus" | grep "BlockingApp:")" != "" ]
 				then
-					blockremain=$(( $blockappthreshold - blockappcount ))
+					blockremain=$(( blockappthreshold - blockappcount ))
 					if [ $blockremain -eq 0 ]
 					then
 						# blockingapp threshold exceeded, we will prompt user ...
@@ -1049,7 +1049,7 @@ fauxLogout()
 	tryquitevery=3
 	while [ "$(getAppList)" != "" ]
 	do
-		for (( c=1; c<=(( $waitforlogout / $tryquitevery )); c++ ))
+		for (( c=1; c<=(( waitforlogout / tryquitevery )); c++ ))
 		do
 			quitAllApps
 			#check if all apps are quit break if so, otherwise fire every $tryquitevery
