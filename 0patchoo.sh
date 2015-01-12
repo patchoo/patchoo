@@ -109,7 +109,7 @@ msgshortfwwarn="
 IMPORTANT: A firmware update will be installed.
 Ensure you connect AC power before starting the update process."
 msgshortoswarn="
-IMPORTANT: A major OSX upgrade will be performed.
+IMPORTANT: A major OS X upgrade will be performed.
 Ensure you connect AC power before starting the update process.
 It could take up to 90 minutes to complete."
 msgfirmwarewarning="
@@ -119,7 +119,7 @@ Please ensure you are connected to AC Power! Do NOT touch any keys or the power 
 
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 msgosupgradewarning="
-Your computer is peforming a major OSX upgrade.
+Your computer is peforming a major OS X upgrade.
 
 Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete. 
 
@@ -142,7 +142,7 @@ log="jamf.log"
 ##################################
 ##################################
 
-osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need minor version
+osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need patch version
 macaddress=$(networksetup -getmacaddress en0 | awk '{ print $3 }' | sed 's/:/./g')
 
 OLDIFS="$IFS"
@@ -157,7 +157,7 @@ IFS=$'\n'
 # command line paramaters
 mode="$4"
 prereqreceipt="$5"
-prereqpolicy="$(echo $6 | sed -e 's/ /\+/g')" # change out " " for +
+prereqpolicy="$(echo "$6" | sed -e 's/ /\+/g')" # change out " " for +
 option="$7"
 spawned="$1" # used internally
 
@@ -176,7 +176,7 @@ jssgroupfile="$datafolder/$name-jssgroups.tmp"
 computername=$(scutil --get ComputerName)
 jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url" 2> /dev/null)
 
-daystamp=$(($(date +%s) / 86400)) # days since 1-1-70
+daystamp=$(( $(date +%s) / 86400 )) # days since 1-1-70
 
 # due to issue with cocoaDialog outside of user session, this check as been added
 case $osxversion in	
@@ -277,7 +277,7 @@ secho()
 		then
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			"$cdialogbin" bubble --title "$title" --text "$message" --icon $icon --timeout $timeout &
+			"$cdialogbin" bubble --title "$title" --text "$message" --icon "$icon" --timeout "$timeout" &
 		fi
 	else
 		echo "$name: $message"
@@ -307,9 +307,9 @@ makeMessage()
 
 checkConsoleStatus()
 {
-	userloggedin="$(who | grep console | awk '{print $1}')"
+	userloggedin="$(/usr/bin/stat -f%Su /dev/console)"
 	consoleuser="$(ls -l /dev/console | awk '{print $3}')"
-	screensaver="$(ps aux | grep ScreenSaverEngine | grep -v grep)"
+	screensaver="$(pgrep ScreenSaverEngine)"
 
 	if [ "$screensaver" != "" ]
 	then
@@ -335,7 +335,7 @@ checkConsoleStatus()
 	if $blockingappmode
 	then
 		# get foreground app
-		fgapp=$(sudo -u $userloggedin osascript -e "tell application \"System Events\"" -e "return name of first application process whose frontmost is true" -e "end tell"  2> /dev/null) # avoid errors in log
+		fgapp=$(sudo -u "$userloggedin" osascript -e "tell application \"System Events\"" -e "return name of first application process whose frontmost is true" -e "end tell"  2> /dev/null) # avoid errors in log
 		# check for blocking apps		
 		for app in ${blockingapps[@]}
 		do
@@ -353,7 +353,7 @@ checkConsoleStatus()
 
 checkProcess()
 {
-	if [ "$(ps aux | grep "$1" | grep -v grep)" != "" ]
+	if [ "$(pgrep "$1")" != "" ]
 	then
 		return 0
 	else
@@ -396,7 +396,7 @@ cachePkg()
 		pkgext=${pkgname##*.} 	# handle zipped bundle pkgs
 		[ "$pkgext" == "zip" ] && pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 		# get pkgdata from the jss api
-		curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/packages/name/$pkgname -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/packages/name/$pkgname" -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
 		if [ "$pkgdescription" == "<info />" ] || [ "$pkgdescription" == "" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
@@ -426,11 +426,11 @@ cachePkg()
 				# query the JSS for the prereqpolicy
 				secho "$prereqreceipt is required and NOT found"
 				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-				prereqpolicyid=$(curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				prereqpolicyid=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/policies/name/$prereqpolicy" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
-				jamf policy -id $prereqpolicyid
+				jamf policy -id "$prereqpolicyid"
 			fi
 		fi
 	else
@@ -457,11 +457,11 @@ checkASU()
 	secho "checking for apple software updates ..."
 	softwareupdate -la > "$swupdateout"
 	# check if there are any updates
-	if [ "$(cat $swupdateout | grep "*")" != "" ]
+	if [ "$(cat "$swupdateout" | grep "\*")" != "" ]
 	then
 		# let's parse the updates
-		asupkgarray=( $(cat $swupdateout | grep "*" | cut -c6- ) )
-		asudescriptarray=( $(cat $swupdateout | grep -A2 "*" | grep -v "*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
+		asupkgarray=( $(cat "$swupdateout" | grep "\*" | cut -c6- ) )
+		asudescriptarray=( $(cat "$swupdateout" | grep -A2 "\*" | grep -v "\*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
 		i=0
 		for asupkg in ${asupkgarray[@]} 
 		do
@@ -481,14 +481,14 @@ checkASU()
 		done 
 
 		# check for restart required
-		if [ "$(cat $swupdateout | grep "\[restart\]")" != "" ]
+		if [ "$(cat "$swupdateout" | grep "\[restart\]")" != "" ]
 		then
 			touch "$pkgdatafolder/.restart-required"
 		fi
 	else
 		secho "no updates found."
 	fi
-	rm $swupdateout
+	rm "$swupdateout"
 }
 
 setASUCatalogURL()
@@ -500,7 +500,7 @@ setASUCatalogURL()
 	
 	if [ "$currentswupdurl" != "" ]
 	then
-		asuserver="$(echo $currentswupdurl | cut -f-3 -d/)"
+		asuserver="$(echo "$currentswupdurl" | cut -f-3 -d/)"
 		case $osxversion in	
 			10.5)
 				swupdateurl="$asuserver/content/catalogs/others/index-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
@@ -521,7 +521,7 @@ setASUCatalogURL()
 				swupdateurl="$asuserver/content/catalogs/others/index-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
 				;;
 			*)
-				secho "I can't do this osx version.. sadface."
+				secho "I can't do this OS X version.. sadface."
 				return
 				;;
 		esac
@@ -547,7 +547,7 @@ buildUpdateLists()
 		casppkg=$(basename "$infofile")		#get rid of path
 		casppkg="${casppkg%\.*}"				#remove ext.
 		casppkgdescrip=$(cat "$infofile")
-		echo -e "${casppriority}\t${casppkg}\t${casppkgdescrip}" >> $casppkginfo
+		echo -e "${casppriority}\t${casppkg}\t${casppkgdescrip}" >> "$casppkginfo"
 	done
 	
 	# if there is an OS Upgrade packge cached in the casper installs, skip the apple updates
@@ -560,20 +560,20 @@ buildUpdateLists()
 		for infofile in "$pkgdatafolder/"*.asuinfo
 		do
 			# check for SMC, EFI and Firmware updates, flag if so
-			[ "$(echo $infofile | grep EFIUpdate)" != "" ] && touch "$pkgdatafolder/.fw-update"
-			[ "$(echo $infofile | grep SMCUpdate)" != "" ] && touch "$pkgdatafolder/.fw-update"
-			[ "$(echo $infofile | grep Firmware)" != "" ] && touch "$pkgdatafolder/.fw-update"			
+			[ "$(echo "$infofile" | grep EFIUpdate)" != "" ] && touch "$pkgdatafolder/.fw-update"
+			[ "$(echo "$infofile" | grep SMCUpdate)" != "" ] && touch "$pkgdatafolder/.fw-update"
+			[ "$(echo "$infofile" | grep Firmware)" != "" ] && touch "$pkgdatafolder/.fw-update"			
 			# set priorities for system and sec updates
 			asupriority=1
 			#  OSX supplemental for 10.8.5 broke the rules, not OSXUpd... this could catch other things too... hmm.
-			[ "$(echo $infofile | grep OSX)" != "" ] && asupriority="98"
+			[ "$(echo "$infofile" | grep OSX)" != "" ] && asupriority="98"
 			# if it's a security or OSX update make it 99
-			[ "$(echo $infofile | grep SecUpd)" != "" ] && asupriority="99"	
-			[ "$(echo $infofile | grep OSXUpd)" != "" ] && asupriority="99"
+			[ "$(echo "$infofile" | grep SecUpd)" != "" ] && asupriority="99"	
+			[ "$(echo "$infofile" | grep OSXUpd)" != "" ] && asupriority="99"
 			asupkg=$(basename "$infofile")	#get rid of path
 			asupkg="${asupkg%\.*}"		#remove ext.
 			asupkgdescrip=$(cat "$infofile")
-			echo -e "${asupriority}\t${asupkg}\t${asupkgdescrip}" >> $asupkginfo
+			echo -e "${asupriority}\t${asupkg}\t${asupkgdescrip}" >> "$asupkginfo"
 		done
 	fi
 
@@ -624,7 +624,7 @@ installCasperPkg()
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<fut>true</fut>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<feu>true</feu>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
 	secho "jamf is installing $casppkg"
-	jamf install $jamfinstallopts -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
+	jamf install "$jamfinstallopts" -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
 	# (insert error checking)
 	# remove from the waiting room
 
@@ -660,8 +660,8 @@ installSoftware()
 			(
 				# use cocoadialog for gui
 				currentpercent=0
-				casptotal=$(cat $casppkginfo | wc -l)
-				total=$(( $casptotal * 100 ))		 		
+				casptotal=$(cat "$casppkginfo" | wc -l)
+				total=$(( casptotal * 100 ))		 		
 		 		while read line
 		 		do
 					casppkgdescrip=$(echo "$line" | cut -f3)
@@ -670,14 +670,14 @@ installSoftware()
 					# we are fudging a progress bar, count up to 100, increase bar, until done, then 
 					for (( perfectcount=1; perfectcount<=100; perfectcount++ ))
 					do
-						percent=$(( ( (perfectcount + currentpercent) * 100 ) / $total ))
-						(( $percent == 100 )) && percent=99	# we don't want out progressbar to finish prematurely
+						percent=$(( ( (perfectcount + currentpercent) * 100 ) / total ))
+						(( percent == 100 )) && percent=99	# we don't want out progressbar to finish prematurely
 						echo "$percent Installing $casppkgdescrip ..."
-						kill -0 $caspinstallpid 2> /dev/null
+						kill -0 "$caspinstallpid" 2> /dev/null
 						[ "$?" != "0" ] && break # if it's done, break
 						sleep 1
 					done
-					wait $caspinstallpid # if we have run out progress bar, wait for pid to complete.
+					wait "$caspinstallpid" # if we have run out progress bar, wait for pid to complete.
 					currentpercent=$(( currentpercent + 100 )) # add another 100 for each completed install				
 				done < "$casppkginfo"
 				echo "100 Installation complete"
@@ -704,8 +704,8 @@ installSoftware()
 		else
 			(
 				currentpercent=0
-				asutotal=$(cat $asupkginfo | wc -l)
-				total=$(( $asutotal * 100 ))
+				asutotal=$(cat "$asupkginfo" | wc -l)
+				total=$(( asutotal * 100 ))
 
 				while read line
 				do
@@ -716,19 +716,19 @@ installSoftware()
 					# spawn the update process, and direct output to tmpfile for parsing (we probably should use a named pipe here... future...)
 					swupdcmd="softwareupdate -v -i $asupkg"
 					swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
-					softwareupdate -v -i "$asupkg" > $swupdateout &
+					softwareupdate -v -i "$asupkg" > "$swupdateout" &
 					softwareupdatepid=$!
 					# wait for the software update to finish, parse output of softwareupdate
-					while kill -0 $softwareupdatepid > /dev/null 2>&1
+					while kill -0 "$softwareupdatepid" > /dev/null 2>&1
 					do
 						sleep 1
 						# get percent to update progressbar
-						percentout=$(cat $swupdateout | grep "Progress:" | tail -n1 | awk '{print $2}' | sed 's/\%//g') 
-						percent=$(( ( (percentout + currentpercent) * 100 ) / $total ))
+						percentout=$(cat "$swupdateout" | grep "Progress:" | tail -n1 | awk '{print $2}' | sed 's/\%//g') 
+						percent=$(( ( (percentout + currentpercent) * 100 ) / total ))
 						echo "$percent Installing $asupkgdescrip ..."
 					done
 					currentpercent=$(( currentpercent + 100 )) # add another 100 for each completed install
-					rm $swupdateout
+					rm "$swupdateout"
 				done < "$asupkginfo"
 				echo "100 Installation complete"
 				sleep 1
@@ -873,9 +873,9 @@ promptInstall()
 			# we need to prompt them at some stage.
 			if $blockingappmode
 			then
-				if [ "$(echo $consolestatus | grep "BlockingApp:")" != "" ]
+				if [ "$(echo "$consolestatus" | grep "BlockingApp:")" != "" ]
 				then
-					blockremain=$(( $blockappthreshold - blockappcount ))
+					blockremain=$(( blockappthreshold - blockappcount ))
 					if [ $blockremain -eq 0 ]
 					then
 						# blockingapp threshold exceeded, we will prompt user ...
@@ -1025,19 +1025,19 @@ logoutUser()
 # loops through all user visible apps, quits, writes lsuielement changes to cocoa (prevent dock showing), uses ARD lockscreen to blank screen out.
 getAppList()
 (
-	applist=$(sudo -u $user osascript -e "tell application \"System Events\" to return displayed name of every application process whose (background only is false and displayed name is not \"Finder\")")
-	echo $applist
+	applist="$(sudo -u "$user" osascript -e "tell application \"System Events\" to return displayed name of every application process whose (background only is false and displayed name is not \"Finder\")")"
+	echo "$applist"
 )
 
 quitAllApps()
 (
 	applist=$(getAppList)
-	applistarray=$(echo $applist | sed -e 's/^/\"/' -e 's/$/\"/' -e 's/, /\" \"/g')
-	eval set $applistarray
+	applistarray=$(echo "$applist" | sed -e 's/^/\"/' -e 's/$/\"/' -e 's/, /\" \"/g')
+	eval set "$applistarray"
 	for appname in "$@"
 	do
 		secho "trying to quit: $appname ..."
-		sudo -u $user osascript -e "ignoring application responses" -e "tell application \"$appname\" to quit" -e "end ignoring"
+		sudo -u "$user" osascript -e "ignoring application responses" -e "tell application \"$appname\" to quit" -e "end ignoring"
 	done
 )
 
@@ -1049,7 +1049,7 @@ fauxLogout()
 	tryquitevery=3
 	while [ "$(getAppList)" != "" ]
 	do
-		for (( c=1; c<=(( $waitforlogout / $tryquitevery )); c++ ))
+		for (( c=1; c<=(( waitforlogout / tryquitevery )); c++ ))
 		do
 			quitAllApps
 			#check if all apps are quit break if so, otherwise fire every $tryquitevery
@@ -1088,7 +1088,7 @@ fauxLogout()
 	touch /tmp/.patchoo-logoutdone
 	installpid=$(cat /tmp/.patchoo-install-pid)
 	secho "fauxlogout done, screen locked (my pid: $$) waiting installs (pid: $installpid)..."
-	while ps -p $installpid > /dev/null
+	while ps -p "$installpid" > /dev/null
 	do
 		sleep 1
 	done
@@ -1187,7 +1187,7 @@ getGroupMembership()
 	if [ ! -f "$jssgroupfile" ]
 	then
 		secho "getting computer group membership ..."
-		curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/computers/macaddress/$macaddress | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
+		curl $curlopts -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/computers/macaddress/$macaddress" | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
 	fi
 	for checkgroup in ${jssgroup[@]}
 	do
@@ -1325,7 +1325,7 @@ checkAndReadProvisionInfo()
 	pdprovisioninfo=true	
 	if $pdusebuildea
 	then
-		patchoobuild=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extension_attributes | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
+		patchoobuild=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
 		# error checking
 		echo "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
 		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
@@ -1333,7 +1333,7 @@ checkAndReadProvisionInfo()
 
 	if $pdusedepts
 	then
-		department=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location | xpath "//computer/location/department/text()" 2> /dev/null)
+		department=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
 		# error checking
 		echo "department:  $department" >> "$pdprovisiontmp"
 		[ "$department" == "" ] && pdprovisioninfo=false
@@ -1341,7 +1341,7 @@ checkAndReadProvisionInfo()
 
 	if $pdusebuildings
 	then
-		building=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location | xpath "//computer/location/building/text()" 2> /dev/null)
+		building=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
 		# error checkingx
 		echo "building:  $building" >> "$pdprovisiontmp"
 		[ "$building" == "" ] && pdprovisioninfo=false
@@ -1362,17 +1362,17 @@ choicePrompt()
 	set choicelist to every paragraph of (do shell script ("cat $choicetmp"))
 	set choice to {choose from list choicelist}
 	return choice
-	EOF
+EOF
 	)
 	# error checking
-	echo "$(echo $promptdata | cut -d, -f2 | cut -d: -f2)"
+	echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
 	rm "$choicetmp"
 }
 
 promptAndSetComputerName()
 {
 	# this computer must existing in the JSS... as we've been enrolled!
-	computername=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/general | xpath "//computer/general/name/text()" 2> /dev/null)
+	computername=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/general" | xpath "//computer/general/name/text()" 2> /dev/null)
 	if $pdsetcomputername
 	then
 		secho "current computername is $computername"
@@ -1386,7 +1386,7 @@ promptAndSetComputerName()
 				continue
 			else
 				# lookup jss to ensure computername isn't in use
-				macaddresslookup=$(curl $curlopts -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computers/name/$(echo "$newcomputername" | sed -e 's/ /\+/g')/subset/general | xpath "//computer/general/mac_address/text()" 2> /dev/null | sed 's/:/./g' | tr '[:upper:]' '[:lower:]')
+				macaddresslookup=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/name/$(echo "$newcomputername" | sed -e 's/ /\+/g')/subset/general" | xpath "//computer/general/mac_address/text()" 2> /dev/null | sed 's/:/./g' | tr '[:upper:]' '[:lower:]')
 				if [ "$macaddresslookup" == "" ] || [ "$macaddresslookup" == "$macaddress" ] # no entry, or our entry - ok to go
 				then
 					computername="$newcomputername"
@@ -1430,7 +1430,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	else
 		secho "provisioning information incomplete..."
 		skipprompt=$(osascript -e "display dialog \"This Mac has incomplete provisioning information\"  buttons {\"Set Provisioning Info...\",\"Skip\"} default button 2 giving up after 9999" | cut -d, -f1 | cut -d: -f2)
-		if [ "$skipprompt" == "Skip "]
+		if [ "$skipprompt" == "Skip" ]
 		then
 			deployready=true
 			return 0
@@ -1440,7 +1440,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	if $pdusebuildea
 	then	
 		#read patchoobuilds
-		patchoobuildchoicearray=($(curl -k -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g') | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
+		patchoobuildchoicearray=($(curl -k -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
 		# error checking
 		for line in "${patchoobuildchoicearray[@]}"
 		do
@@ -1452,7 +1452,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	if $pdusedepts
 	then	
 		#read dept choices
-		deptchoicearray=($(curl -k -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		deptchoicearray=($(curl -k -s -u "$apiuser:$apipass" "${jssurl}JSSResource/departments" | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
 		# error checking
 		for line in "${deptchoicearray[@]}"
 		do
@@ -1464,7 +1464,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	if $pdusebuildings
 	then
 		#read building choices
-		buildingchoicearray=($(curl -k -s -u "$apiuser":"$apipass" ${jssurl}JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		buildingchoicearray=($(curl -k -s -u "$apiuser:$apipass" "${jssurl}JSSResource/buildings" | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
 		for line in "${buildingchoicearray[@]}"
 		do
 		    echo "$line" >> "$choicetmp"
@@ -1520,19 +1520,19 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 
 		if $pdusebuildea
 		then
-			putresult=$(curl $curlopts -s -u "$tmpapiadminuser":"$tmpapiadminpass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extensionattributes -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusedepts
 		then
-			putresult=$(curl $curlopts -s -u "$tmpapiadminuser":"$tmpapiadminpass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location -T "$depttmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$depttmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusebuildings
 		then
-			putresult=$(curl $curlopts -s -u "$tmpapiadminuser":"$tmpapiadminpass" ${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location -T "$buildingtmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$buildingtmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
@@ -1611,11 +1611,11 @@ deployHandler()
 	sleep 3
 	# recon ?
 	secho "firing deploy trigger ..."
-	jamf policy -trigger deploy
+	jamf policy -trigger "deploy"
 	if $pdusebuildea
 	then
 		secho "firing deploy-${patchoobuild} trigger ..."
-		jamf policy -trigger deploy-${patchoobuild}	# calling our build specific trigger eg. deploy-management, deploy-studio
+		jamf policy -trigger "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null)  # are installations cached by patchoo polcies, during our deploy?
 	if [ "$installsavail" == "Yes" ]
@@ -1640,15 +1640,15 @@ deployGroup()
  		if [ "$triggerorpolicy" != "" ]
  		then
 	 		secho "looking up $triggerorpolicy against jss..."
-			policyid=$(curl $curlopts -s -u "$apiuser":"$apipass"  ${jssurl}JSSResource/policies/name/$(echo $triggerorpolicy | sed -e 's/ /\+/g') -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+			policyid=$(curl $curlopts -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/policies/name/$(echo "$triggerorpolicy" | sed -e 's/ /\+/g')" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 			if [ "$policyid" != "" ]
 			then
 				secho "jamf calling policy id $policyid"
-				jamf policy -id $policyid
+				jamf policy -id "$policyid"
 			else
 				# if there's no id, lets call a trigger
 				secho "jamf firing trigger $triggerorpolicy"
-				jamf policy -trigger $(echo $triggerorpolicy | sed -e 's/ /\_/g')
+				jamf policy -trigger "$(echo "$triggerorpolicy" | sed -e 's/ /\_/g')"
 			fi
 		fi
 	done
@@ -1762,7 +1762,7 @@ $message"
 	done
 	
 	# uncaffeninate
-	kill $caffeinatepid
+	kill "$caffeinatepid"
 }
 
 jamfRecon()
