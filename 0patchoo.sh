@@ -307,7 +307,7 @@ makeMessage()
 
 checkConsoleStatus()
 {
-	userloggedin="$(/usr/bin/stat -f%Su /dev/console)"
+	userloggedin="$(who | grep console | awk '{print $1}')"
 	consoleuser="$(ls -l /dev/console | awk '{print $3}')"
 	screensaver="$(pgrep ScreenSaverEngine)"
 
