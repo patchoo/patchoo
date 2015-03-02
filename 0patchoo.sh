@@ -194,6 +194,8 @@ esac
 [ ! -d "$pkgdatafolder" ] && mkdir -p "$pkgdatafolder"
 chmod 700 "$datafolder"
 
+# if there is no receipt dir, best make one... derp.
+[ ! -d "/Library/Application Support/JAMF/Receipts" ] && mkdir -p "/Library/Application Support/JAMF/Receipts"
 
 # DEBUG STUFF
 if [ -f "$datafolder/.patchoo-debug" ]
@@ -396,7 +398,7 @@ cachePkg()
 		pkgext=${pkgname##*.} 	# handle zipped bundle pkgs
 		[ "$pkgext" == "zip" ] && pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 		# get pkgdata from the jss api
-		curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/packages/name/$pkgname" -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/packages/name/$pkgname" -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
 		if [ "$pkgdescription" == "<info />" ] || [ "$pkgdescription" == "" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
@@ -426,7 +428,7 @@ cachePkg()
 				# query the JSS for the prereqpolicy
 				secho "$prereqreceipt is required and NOT found"
 				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-				prereqpolicyid=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/policies/name/$prereqpolicy" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				prereqpolicyid=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/policies/name/$prereqpolicy" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
@@ -1187,7 +1189,7 @@ getGroupMembership()
 	if [ ! -f "$jssgroupfile" ]
 	then
 		secho "getting computer group membership ..."
-		curl $curlopts -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/computers/macaddress/$macaddress" | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
+		curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/computers/macaddress/$macaddress" | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
 	fi
 	for checkgroup in ${jssgroup[@]}
 	do
@@ -1325,7 +1327,7 @@ checkAndReadProvisionInfo()
 	pdprovisioninfo=true	
 	if $pdusebuildea
 	then
-		patchoobuild=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
+		patchoobuild=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
 		# error checking
 		echo "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
 		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
@@ -1333,7 +1335,7 @@ checkAndReadProvisionInfo()
 
 	if $pdusedepts
 	then
-		department=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
+		department=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
 		# error checking
 		echo "department:  $department" >> "$pdprovisiontmp"
 		[ "$department" == "" ] && pdprovisioninfo=false
@@ -1341,7 +1343,7 @@ checkAndReadProvisionInfo()
 
 	if $pdusebuildings
 	then
-		building=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
+		building=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
 		# error checkingx
 		echo "building:  $building" >> "$pdprovisiontmp"
 		[ "$building" == "" ] && pdprovisioninfo=false
@@ -1372,7 +1374,7 @@ EOF
 promptAndSetComputerName()
 {
 	# this computer must existing in the JSS... as we've been enrolled!
-	computername=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/general" | xpath "//computer/general/name/text()" 2> /dev/null)
+	computername=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/general" | xpath "//computer/general/name/text()" 2> /dev/null)
 	if $pdsetcomputername
 	then
 		secho "current computername is $computername"
@@ -1386,7 +1388,7 @@ promptAndSetComputerName()
 				continue
 			else
 				# lookup jss to ensure computername isn't in use
-				macaddresslookup=$(curl $curlopts -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/name/$(echo "$newcomputername" | sed -e 's/ /\+/g')/subset/general" | xpath "//computer/general/mac_address/text()" 2> /dev/null | sed 's/:/./g' | tr '[:upper:]' '[:lower:]')
+				macaddresslookup=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/name/$(echo "$newcomputername" | sed -e 's/ /\+/g')/subset/general" | xpath "//computer/general/mac_address/text()" 2> /dev/null | sed 's/:/./g' | tr '[:upper:]' '[:lower:]')
 				if [ "$macaddresslookup" == "" ] || [ "$macaddresslookup" == "$macaddress" ] # no entry, or our entry - ok to go
 				then
 					computername="$newcomputername"
@@ -1440,7 +1442,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	if $pdusebuildea
 	then	
 		#read patchoobuilds
-		patchoobuildchoicearray=($(curl -k -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
+		patchoobuildchoicearray=($(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
 		# error checking
 		for line in "${patchoobuildchoicearray[@]}"
 		do
@@ -1452,7 +1454,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	if $pdusedepts
 	then	
 		#read dept choices
-		deptchoicearray=($(curl -k -s -u "$apiuser:$apipass" "${jssurl}JSSResource/departments" | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		deptchoicearray=($(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/departments" | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
 		# error checking
 		for line in "${deptchoicearray[@]}"
 		do
@@ -1464,7 +1466,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	if $pdusebuildings
 	then
 		#read building choices
-		buildingchoicearray=($(curl -k -s -u "$apiuser:$apipass" "${jssurl}JSSResource/buildings" | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		buildingchoicearray=($(curl $curlopts -H "Content-Type: application/xml"  -s -u "$apiuser:$apipass" "${jssurl}JSSResource/buildings" | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
 		for line in "${buildingchoicearray[@]}"
 		do
 		    echo "$line" >> "$choicetmp"
@@ -1520,19 +1522,19 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 
 		if $pdusebuildea
 		then
-			putresult=$(curl $curlopts -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusedepts
 		then
-			putresult=$(curl $curlopts -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$depttmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$depttmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusebuildings
 		then
-			putresult=$(curl $curlopts -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$buildingtmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$buildingtmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
@@ -1640,7 +1642,7 @@ deployGroup()
  		if [ "$triggerorpolicy" != "" ]
  		then
 	 		secho "looking up $triggerorpolicy against jss..."
-			policyid=$(curl $curlopts -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/policies/name/$(echo "$triggerorpolicy" | sed -e 's/ /\+/g')" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+			policyid=$(curl $curlopts -H "Content-Type: application/xml" -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/policies/name/$(echo "$triggerorpolicy" | sed -e 's/ /\+/g')" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 			if [ "$policyid" != "" ]
 			then
 				secho "jamf calling policy id $policyid"

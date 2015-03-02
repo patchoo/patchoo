@@ -61,7 +61,7 @@ myipint=$(ipToInt ${myip})
 
 echo "my ip: ${myip}"
 
-curl ${curlopts} -s -u "${apiuser}:${apipass}" ${jssurl}JSSResource/networksegments > "${tmpnetsegout}"
+curl ${curlopts} -H "Content-Type: application/xml" -s -u "${apiuser}:${apipass}" ${jssurl}JSSResource/networksegments > "${tmpnetsegout}"
 
 # get number of segments
 netsegsize=$(xpath $tmpnetsegout "//network_segments/size/text()" 2> /dev/null)
@@ -94,9 +94,9 @@ if $foundseg
 then
 	echo "getting swupdate server..."
 	mynetidx=$i
-	curl ${curlopts} -s -u "${apiuser}:${apipass}" ${jssurl}JSSResource/networksegments/id/${netsegid[$mynetidx]} > "${tmpdir}/mynetseg.xml"
+	curl ${curlopts} -H "Content-Type: application/xml" -s -u "${apiuser}:${apipass}" ${jssurl}JSSResource/networksegments/id/${netsegid[$mynetidx]} > "${tmpdir}/mynetseg.xml"
  	asuservername=$(xpath "${tmpdir}/mynetseg.xml" "//network_segment/swu_server/text()" 2> /dev/null)
- 	curl ${curlopts} -s -u "${apiuser}:${apipass}" ${jssurl}JSSResource/softwareupdateservers/name/$(echo ${asuservername} | sed -e 's/ /\+/g') > "${tmpdir}/asuserver.xml"
+ 	curl ${curlopts} -H "Content-Type: application/xml" -s -u "${apiuser}:${apipass}" ${jssurl}JSSResource/softwareupdateservers/name/$(echo ${asuservername} | sed -e 's/ /\+/g') > "${tmpdir}/asuserver.xml"
  	asuserver=$(xpath "${tmpdir}/asuserver.xml" "//software_update_server/ip_address/text()" 2> /dev/null)
  	asuport=$(xpath "${tmpdir}/asuserver.xml" "//software_update_server/port/text()" 2> /dev/null)
 
