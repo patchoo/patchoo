@@ -1728,7 +1728,7 @@ bootstrapHelper()
 	killall jamfHelper
 
 	# trigger the bootstrap policy
-	jamf policy -trigger bootstrap
+	jamf policy -trigger bootstrap &
 
 	# these messages will be ignored in the jamf.log, the previous entry will be displayed at the lockscreen
 	ignoremessages=("The management framework will be enforced" "Checking for policies triggered by")
