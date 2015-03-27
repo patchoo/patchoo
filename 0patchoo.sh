@@ -98,7 +98,10 @@ pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # thi
 #########################################
 
 msgtitlenewsoft="New Software Available"
-msgnewsoftware="Evernote IT has made the following new software available"
+msgnewsoftware="Evernote IT has made the following updates available"
+msginstallnow="Evernote IT will install the following updates. 
+You may be required to close certain programs during the update. 
+Please save your work then click 'Install' to proceed."
 msginstalllater="
 NOTE: You can perform the installation later by clicking
 'Check for New Software' under Updates in Self Service"
@@ -824,6 +827,11 @@ promptInstall()
 		promptmode="--selfservice"
 		rm "$datafolder/.patchoo-selfservice-check"
 	fi
+	
+	if [ ! -f "/tmp/.patchoo-restart" ]
+	then
+		promptmode="--norestart"
+	fi
 
 	# there are waiting updates ... make a message for the user prompt	
 	secho "prompting user..."
@@ -886,6 +894,14 @@ promptInstall()
 				;;
 			esac
 		;;
+		"--norestart" )
+			#
+			# install updates without restarting. warn user that programs may be closed 
+			#
+			makeMessage ""
+			makeMessage "$msginstallnow"
+			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Install" )
+		;;		
 		
 		"--selfservice" )
 			#
@@ -939,7 +955,7 @@ promptInstall()
 						# if it's nastymode (tm) we Logout and Install no matter what
 						[ $nastymode ] && answer="Logout and Install..."
 						secho "FORCING INSTALL!"
-					else
+					elsif 
 						# prompt user with defer option
 						makeMessage ""
 						makeMessage "$msginstalllater"
@@ -962,6 +978,11 @@ promptInstall()
 
 	# process the answer.
 	case $answer in
+		
+		"Install" )
+			secho "Installing updates..."
+			return
+		;;
 		
 		"Logout and Install..." )
 			# this flags for install, and logs out the user, logout policy picks up the install flag and does installations.
