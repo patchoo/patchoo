@@ -25,15 +25,15 @@ apipass="apipass"
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
-cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
+cdialog="/Library/Application Support/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
-selfsignedjsscert=true
+selfsignedjsscert=false
 
 # users can defer x update prompts
 defermode=true
-defaultdeferthresold="10"
+defaultdeferthresold="4"
 
 # REALLY forces a logout when defers run out
 nastymode=true
@@ -98,8 +98,10 @@ pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # thi
 #########################################
 
 msgtitlenewsoft="New Software Available"
-msgnewsoftware="The following new software is available"
-msginstalllater="(You can perform the installation later via Self Service)"
+msgnewsoftware="Evernote IT has made the following new software available"
+msginstalllater="
+NOTE: You can perform the installation later by clicking
+'Check for New Software' under Updates in Self Service"
 msgnewsoftforced="The following software must be installed now!"
 msgbootstrap="Mac is provisioning. Do not interrupt or power off."
 msgbootstapdeployholdingpattern="Awaiting provisioning information. Your admin has been notified."
@@ -217,8 +219,6 @@ then
 fi
 
 # set defaults for defer and blockingapp counts
-
-# defer is the # of times a user can defer updates
 deferthreshold=$(defaults read "$prefs" DeferThreshold 2> /dev/null)
 if [ "$?" != "0" ]
 then
@@ -231,6 +231,9 @@ then
 	defaults write "$prefs" DeferCount -int 0
 	defercount=0
 fi
+
+# defer is the # of times a user can defer updates
+
 
 # blockingapp is the # of times a blocking app can block a prompt
 blockappthreshold=$(defaults read "$prefs" BlockingAppThreshold 2> /dev/null)
@@ -464,6 +467,16 @@ checkASU()
 		# let's parse the updates
 		asupkgarray=( $(cat "$swupdateout" | grep "\*" | cut -c6- ) )
 		asudescriptarray=( $(cat "$swupdateout" | grep -A2 "\*" | grep -v "\*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
+
+        # first clean up any packages that were installed from the appstore
+		find $pkgdatafolder -iname "*.asuinfo" | while read f
+        do
+            if [[ "$f" != *"${asupkgarray[@]}"* ]]; then
+                secho "$f not available or already installed. Removing..."
+                rm $f
+            fi
+        done
+        
 		i=0
 		for asupkg in ${asupkgarray[@]} 
 		do
@@ -486,9 +499,27 @@ checkASU()
 		if [ "$(cat "$swupdateout" | grep "\[restart\]")" != "" ]
 		then
 			touch "$pkgdatafolder/.restart-required"
+		else
+		    # install the updates
+		    softwareupdate -i -a
+		    softwareupdate -la > "$swupdateout"
+		    if [ "$(cat "$swupdateout" | grep "\*")" != "" ]
+		    then
+		        secho "Error with update install. Manual intervention required."
+		    else
+		        secho "Updates installed successfully. Cleaning up..."
+		        defaults write "$prefs" InstallsAvail -string "No"
+	        	installsavail="No"
+	        	rm -R "$pkgdatafolder"
+	            rm /tmp/.patchoo-install
+	        fi
 		fi
 	else
-		secho "no updates found."
+		secho "no updates found. yo"
+		defaults write "$prefs" InstallsAvail -string "No"
+		installsavail="No"
+		rm -R "$pkgdatafolder"
+	    rm /tmp/.patchoo-install
 	fi
 	rm "$swupdateout"
 }
@@ -954,6 +985,7 @@ promptInstall()
 			# this decreases counter and displays a notification bubble.
 			secho "user selected install later, incrementing deferal counter.."
 			(( defercount ++ ))
+			secho defercount
 			defaults write "$prefs" DeferCount -int $defercount
 			deferremain=$(( deferthreshold - defercount ))
 			if [ $deferremain -eq 0 ]
