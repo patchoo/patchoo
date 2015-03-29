@@ -99,7 +99,8 @@ pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # thi
 
 msgtitlenewsoft="New Software Available"
 msgnewsoftware="Evernote IT has made the following updates available"
-msginstallnow="Evernote IT will install the following updates. 
+msginstallnow="
+The updates do not require a reboot and will be installed now.
 You may be required to close certain programs during the update. 
 Please save your work then click 'Install' to proceed."
 msginstalllater="
@@ -502,20 +503,20 @@ checkASU()
 		if [ "$(cat "$swupdateout" | grep "\[restart\]")" != "" ]
 		then
 			touch "$pkgdatafolder/.restart-required"
-		else
+#		else
 		    # install the updates
-		    softwareupdate -i -a
-		    softwareupdate -la > "$swupdateout"
-		    if [ "$(cat "$swupdateout" | grep "\*")" != "" ]
-		    then
-		        secho "Error with update install. Manual intervention required."
-		    else
-		        secho "Updates installed successfully. Cleaning up..."
-		        defaults write "$prefs" InstallsAvail -string "No"
-	        	installsavail="No"
-	        	rm -R "$pkgdatafolder"
-	            rm /tmp/.patchoo-install
-	        fi
+#		    softwareupdate -i -a
+#		    softwareupdate -la > "$swupdateout"
+#		    if [ "$(cat "$swupdateout" | grep "\*")" != "" ]
+#		    then
+#		        secho "Error with update install. Manual intervention required."
+#		    else
+#		        secho "Updates installed successfully. Cleaning up..."
+#		        defaults write "$prefs" InstallsAvail -string "No"
+#	        	installsavail="No"
+#	        	rm -R "$pkgdatafolder"
+#	            rm /tmp/.patchoo-install
+#	        fi
 		fi
 	else
 		secho "no updates found. yo"
@@ -827,16 +828,17 @@ promptInstall()
 		promptmode="--selfservice"
 		rm "$datafolder/.patchoo-selfservice-check"
 	fi
-	
-	if [ ! -f "/tmp/.patchoo-restart" ]
-	then
-		promptmode="--norestart"
-	fi
 
 	# there are waiting updates ... make a message for the user prompt	
 	secho "prompting user..."
 	message=""
 	
+	# prompt user to install packages if no restart required
+	if [ ! -f "/tmp/.patchoo-restart" ]
+	then
+		promptmode="--norestart"
+	fi
+
 	if [ -f "$casppkginfo" ]
 	then
 		while read line
@@ -981,6 +983,10 @@ promptInstall()
 		
 		"Install" )
 			secho "Installing updates..."
+			touch /tmp/.patchoo-install
+			echo $$ > /tmp/.patchoo-install-pid
+			preInstallWarnings
+			installSoftware
 			return
 		;;
 		
