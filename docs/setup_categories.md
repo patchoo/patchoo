@@ -19,7 +19,7 @@ If you aren't using [patchoo Advanced mode](advanced_patchoo_overview.md) you ca
 Click:
 
 * Settings
-* Computer Management
+* Global Management
 * Categories
 * New 
 
