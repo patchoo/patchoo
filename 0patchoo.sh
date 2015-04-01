@@ -475,8 +475,9 @@ checkASU()
         # first clean up any packages that were installed from the appstore
 		find $pkgdatafolder -iname "*.asuinfo" | while read f
         do
-            if [[ "$f" != *"${asupkgarray[@]}"* ]]; then
-                secho "$f not available or already installed. Removing..."
+        	basefile=`basename $f asuinfo`
+            if [[ ! " ${asupkgarray[@]//.} " =~ " ${basefile//.} " ]]; then
+                secho "$basefile not available or already installed. Removing..."
                 rm $f
             fi
         done
@@ -502,6 +503,7 @@ checkASU()
 		# check for restart required
 		if [ "$(cat "$swupdateout" | grep "\[restart\]")" != "" ]
 		then
+			secho "restart is required"
 			touch "$pkgdatafolder/.restart-required"
 #		else
 		    # install the updates
@@ -834,9 +836,11 @@ promptInstall()
 	message=""
 	
 	# prompt user to install packages if no restart required
-	if [ ! -f "/tmp/.patchoo-restart" ]
+	if [ -f "$pkgdatafolder/.restart-required" ]
 	then
-		promptmode="--norestart"
+		restart="yes"
+	else
+		restart="no"
 	fi
 
 	if [ -f "$casppkginfo" ]
@@ -896,14 +900,6 @@ promptInstall()
 				;;
 			esac
 		;;
-		"--norestart" )
-			#
-			# install updates without restarting. warn user that programs may be closed 
-			#
-			makeMessage ""
-			makeMessage "$msginstallnow"
-			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Install" )
-		;;		
 		
 		"--selfservice" )
 			#
@@ -949,7 +945,7 @@ promptInstall()
 				then
 					# check to see if they are allowed to defer anymore
 					deferremain=$(( deferthreshold - defercount ))
-					if [ $deferremain -eq 0 ] || [ $deferremain -lt 0 ]
+					if [ $restart == "yes" ] && ([ $deferremain -eq 0 ] || [ $deferremain -lt 0 ])
 					then
 						# if the defercounter has run out, FORCED INSTALLATION! set timeout to 30 minutes
 						dialogtimeout="1830"
@@ -957,12 +953,19 @@ promptInstall()
 						# if it's nastymode (tm) we Logout and Install no matter what
 						[ $nastymode ] && answer="Logout and Install..."
 						secho "FORCING INSTALL!"
-					elsif 
+					elif [ $restart == "yes" ]
+					then
 						# prompt user with defer option
 						makeMessage ""
 						makeMessage "$msginstalllater"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later ($deferremain remaining)" "Logout and Install...")
 						secho "deferral counter: $defercount, defer thresold: $deferthreshold"
+					else 
+						# install updates without restarting. warn user that programs may be closed 
+						#
+						makeMessage ""
+						makeMessage "$msginstallnow"
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Install" )
 					fi
 				else
 						# if we don't have deferals enabled
