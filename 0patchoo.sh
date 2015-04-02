@@ -100,8 +100,9 @@ pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # thi
 msgtitlenewsoft="New Software Available"
 msgnewsoftware="Evernote IT has made the following updates available"
 msginstallnow="
-The updates do not require a reboot and will be installed now.
-You may be required to close certain programs during the update. 
+The updates do not require a reboot, however, you may be 
+required to close certain programs during the update.
+ 
 Please save your work then click 'Install' to proceed."
 msginstalllater="
 NOTE: You can perform the installation later by clicking
@@ -505,6 +506,10 @@ checkASU()
 		then
 			secho "restart is required"
 			touch "$pkgdatafolder/.restart-required"
+		elif [ -f "$pkgdatafolder/.restart-required" ]
+		then
+			secho "clearing restart flag"
+			rm "$pkgdatafolder/.restart-required"
 #		else
 		    # install the updates
 #		    softwareupdate -i -a
@@ -947,12 +952,20 @@ promptInstall()
 					deferremain=$(( deferthreshold - defercount ))
 					if [ $restart == "yes" ] && ([ $deferremain -eq 0 ] || [ $deferremain -lt 0 ])
 					then
-						# if the defercounter has run out, FORCED INSTALLATION! set timeout to 30 minutes
-						dialogtimeout="1830"
+						# if the defercounter has run out and restart required, force installation with restart! set timeout to 60 minutes
+						dialogtimeout="3630"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Logout and Install...")
 						# if it's nastymode (tm) we Logout and Install no matter what
 						[ $nastymode ] && answer="Logout and Install..."
 						secho "FORCING INSTALL!"
+					elif [ $deferremain -eq 0 ] || [ $deferremain -lt 0 ]
+					then
+						# if the defercounter has run out, force installation without restart! set timeout to 60 minutes
+						dialogtimeout="3630"
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Install...")
+						# if it's nastymode (tm) we Logout and Install no matter what
+						[ $nastymode ] && answer="Install..."
+						secho "FORCING INSTALL!"					
 					elif [ $restart == "yes" ]
 					then
 						# prompt user with defer option
@@ -961,11 +974,11 @@ promptInstall()
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later ($deferremain remaining)" "Logout and Install...")
 						secho "deferral counter: $defercount, defer thresold: $deferthreshold"
 					else 
-						# install updates without restarting. warn user that programs may be closed 
-						#
+						# prompt user to install updates without restarting. warn user that programs may be closed. offer defer option
 						makeMessage ""
 						makeMessage "$msginstallnow"
-						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Install" )
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later ($deferremain remaining)" "Install..." )
+						secho "deferral counter: $defercount, defer thresold: $deferthreshold"
 					fi
 				else
 						# if we don't have deferals enabled
@@ -984,7 +997,7 @@ promptInstall()
 	# process the answer.
 	case $answer in
 		
-		"Install" )
+		"Install..." )
 			secho "Installing updates..."
 			touch /tmp/.patchoo-install
 			echo $$ > /tmp/.patchoo-install-pid
@@ -1015,7 +1028,7 @@ promptInstall()
 			# this decreases counter and displays a notification bubble.
 			secho "user selected install later, incrementing deferal counter.."
 			(( defercount ++ ))
-			secho defercount
+			secho "defercount: $defercount"
 			defaults write "$prefs" DeferCount -int $defercount
 			deferremain=$(( deferthreshold - defercount ))
 			if [ $deferremain -eq 0 ]
