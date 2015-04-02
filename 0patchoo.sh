@@ -133,7 +133,7 @@ Please ensure you are connected to AC Power! Your computer will restart and the 
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 
 iconsize="72"
-dialogtimeout="210"
+dialogtimeout="3630"
 
 lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns" # used for fauxLogout (ARD LockScreen will display this) and bootstrap
 
