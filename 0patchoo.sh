@@ -131,7 +131,7 @@ Please ensure you are connected to AC Power! Your computer will restart and the 
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 
 iconsize="72"
-dialogtimeout="3630"
+dialogtimeout="210"
 
 lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns" # used for fauxLogout (ARD LockScreen will display this) and bootstrap
 
@@ -222,6 +222,8 @@ then
 fi
 
 # set defaults for defer and blockingapp counts
+
+# defer is the # of times a user can defer updates
 deferthreshold=$(defaults read "$prefs" DeferThreshold 2> /dev/null)
 if [ "$?" != "0" ]
 then
@@ -234,9 +236,6 @@ then
 	defaults write "$prefs" DeferCount -int 0
 	defercount=0
 fi
-
-# defer is the # of times a user can defer updates
-
 
 # blockingapp is the # of times a blocking app can block a prompt
 blockappthreshold=$(defaults read "$prefs" BlockingAppThreshold 2> /dev/null)
@@ -508,27 +507,13 @@ checkASU()
 		then
 			secho "clearing restart flag"
 			rm "$pkgdatafolder/.restart-required"
-#		else
-		    # install the updates
-#		    softwareupdate -i -a
-#		    softwareupdate -la > "$swupdateout"
-#		    if [ "$(cat "$swupdateout" | grep "\*")" != "" ]
-#		    then
-#		        secho "Error with update install. Manual intervention required."
-#		    else
-#		        secho "Updates installed successfully. Cleaning up..."
-#		        defaults write "$prefs" InstallsAvail -string "No"
-#	        	installsavail="No"
-#	        	rm -R "$pkgdatafolder"
-#	            rm /tmp/.patchoo-install
-#	        fi
 		fi
 	else
-		secho "no updates found. yo"
+		secho "no updates found."
 		defaults write "$prefs" InstallsAvail -string "No"
 		installsavail="No"
 		rm -R "$pkgdatafolder"
-	    rm /tmp/.patchoo-install
+	   	rm /tmp/.patchoo-install
 	fi
 	rm "$swupdateout"
 }
@@ -951,7 +936,7 @@ promptInstall()
 					if [ $restart == "yes" ] && ([ $deferremain -eq 0 ] || [ $deferremain -lt 0 ])
 					then
 						# if the defercounter has run out and restart required, force installation with restart! set timeout to 60 minutes
-						dialogtimeout="3630"
+						dialogtimeout="1830"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Logout and Install...")
 						# if it's nastymode (tm) we Logout and Install no matter what
 						[ $nastymode ] && answer="Logout and Install..."
@@ -959,7 +944,7 @@ promptInstall()
 					elif [ $deferremain -eq 0 ] || [ $deferremain -lt 0 ]
 					then
 						# if the defercounter has run out, force installation without restart! set timeout to 60 minutes
-						dialogtimeout="3630"
+						dialogtimeout="1830"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Install...")
 						# if it's nastymode (tm) we Logout and Install no matter what
 						[ $nastymode ] && answer="Install..."
