@@ -25,15 +25,15 @@ apipass="apipass"
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
-cdialog="/Library/Application Support/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
+cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
-selfsignedjsscert=false
+selfsignedjsscert=true
 
 # users can defer x update prompts
 defermode=true
-defaultdeferthresold="4"
+defaultdeferthresold="10"
 
 # REALLY forces a logout when defers run out
 nastymode=true
@@ -98,15 +98,13 @@ pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # thi
 #########################################
 
 msgtitlenewsoft="New Software Available"
-msgnewsoftware="Evernote IT has made the following updates available"
+msgnewsoftware="The following new software is available"
 msginstallnow="
 The updates do not require a reboot, however, you may be 
 required to close certain programs during the update.
  
 Please save your work then click 'Install' to proceed."
-msginstalllater="
-NOTE: You can perform the installation later by clicking
-'Check for New Software' under Updates in Self Service"
+msginstalllater="(You can perform the installation later via Self Service)"
 msgnewsoftforced="The following software must be installed now!"
 msgbootstrap="Mac is provisioning. Do not interrupt or power off."
 msgbootstapdeployholdingpattern="Awaiting provisioning information. Your admin has been notified."
