@@ -13,7 +13,7 @@ If you are a large distributed organisation that has many network segments and c
 
 ### asucatalogset.sh
 
-[extras/asucatalogset.sh](extras/asucatalogset.sh)
+[/extras/asucatalogset.sh](/extras/asucatalogset.sh)
 
 This script will configure your clients to point directly at your local ASU server. It queries the JSS API for network segment data, and will configure the CatalogURL based on your client's primary IP.
 
