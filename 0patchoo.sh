@@ -99,6 +99,11 @@ pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # thi
 
 msgtitlenewsoft="New Software Available"
 msgnewsoftware="The following new software is available"
+msginstallnow="
+The updates do not require a reboot, however, you may be 
+required to close certain programs during the update.
+ 
+Please save your work then click 'Install' to proceed."
 msginstalllater="(You can perform the installation later via Self Service)"
 msgnewsoftforced="The following software must be installed now!"
 msgbootstrap="Mac is provisioning. Do not interrupt or power off."
@@ -464,6 +469,17 @@ checkASU()
 		# let's parse the updates
 		asupkgarray=( $(cat "$swupdateout" | grep "\*" | cut -c6- ) )
 		asudescriptarray=( $(cat "$swupdateout" | grep -A2 "\*" | grep -v "\*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
+
+        # first clean up any packages that were installed from the appstore
+		find $pkgdatafolder -iname "*.asuinfo" | while read f
+        do
+        	basefile=`basename $f asuinfo`
+            if [[ ! " ${asupkgarray[@]//.} " =~ " ${basefile//.} " ]]; then
+                secho "$basefile not available or already installed. Removing..."
+                rm $f
+            fi
+        done
+        
 		i=0
 		for asupkg in ${asupkgarray[@]} 
 		do
@@ -485,10 +501,19 @@ checkASU()
 		# check for restart required
 		if [ "$(cat "$swupdateout" | grep "\[restart\]")" != "" ]
 		then
+			secho "restart is required"
 			touch "$pkgdatafolder/.restart-required"
+		elif [ -f "$pkgdatafolder/.restart-required" ]
+		then
+			secho "clearing restart flag"
+			rm "$pkgdatafolder/.restart-required"
 		fi
 	else
 		secho "no updates found."
+		defaults write "$prefs" InstallsAvail -string "No"
+		installsavail="No"
+		rm -R "$pkgdatafolder"
+	   	rm /tmp/.patchoo-install
 	fi
 	rm "$swupdateout"
 }
@@ -798,6 +823,14 @@ promptInstall()
 	secho "prompting user..."
 	message=""
 	
+	# prompt user to install packages if no restart required
+	if [ -f "$pkgdatafolder/.restart-required" ]
+	then
+		restart="yes"
+	else
+		restart="no"
+	fi
+
 	if [ -f "$casppkginfo" ]
 	then
 		while read line
@@ -900,19 +933,34 @@ promptInstall()
 				then
 					# check to see if they are allowed to defer anymore
 					deferremain=$(( deferthreshold - defercount ))
-					if [ $deferremain -eq 0 ] || [ $deferremain -lt 0 ]
+					if [ $restart == "yes" ] && ([ $deferremain -eq 0 ] || [ $deferremain -lt 0 ])
 					then
-						# if the defercounter has run out, FORCED INSTALLATION! set timeout to 30 minutes
+						# if the defercounter has run out and restart required, force installation with restart! set timeout to 60 minutes
 						dialogtimeout="1830"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Logout and Install...")
 						# if it's nastymode (tm) we Logout and Install no matter what
 						[ $nastymode ] && answer="Logout and Install..."
 						secho "FORCING INSTALL!"
-					else
+					elif [ $deferremain -eq 0 ] || [ $deferremain -lt 0 ]
+					then
+						# if the defercounter has run out, force installation without restart! set timeout to 60 minutes
+						dialogtimeout="1830"
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Install...")
+						# if it's nastymode (tm) we Logout and Install no matter what
+						[ $nastymode ] && answer="Install..."
+						secho "FORCING INSTALL!"					
+					elif [ $restart == "yes" ]
+					then
 						# prompt user with defer option
 						makeMessage ""
 						makeMessage "$msginstalllater"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later ($deferremain remaining)" "Logout and Install...")
+						secho "deferral counter: $defercount, defer thresold: $deferthreshold"
+					else 
+						# prompt user to install updates without restarting. warn user that programs may be closed. offer defer option
+						makeMessage ""
+						makeMessage "$msginstallnow"
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later ($deferremain remaining)" "Install..." )
 						secho "deferral counter: $defercount, defer thresold: $deferthreshold"
 					fi
 				else
@@ -931,6 +979,15 @@ promptInstall()
 
 	# process the answer.
 	case $answer in
+		
+		"Install..." )
+			secho "Installing updates..."
+			touch /tmp/.patchoo-install
+			echo $$ > /tmp/.patchoo-install-pid
+			preInstallWarnings
+			installSoftware
+			return
+		;;
 		
 		"Logout and Install..." )
 			# this flags for install, and logs out the user, logout policy picks up the install flag and does installations.
@@ -954,6 +1011,7 @@ promptInstall()
 			# this decreases counter and displays a notification bubble.
 			secho "user selected install later, incrementing deferal counter.."
 			(( defercount ++ ))
+			secho "defercount: $defercount"
 			defaults write "$prefs" DeferCount -int $defercount
 			deferremain=$(( deferthreshold - defercount ))
 			if [ $deferremain -eq 0 ]
