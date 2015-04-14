@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/patchoo/patchoo.png?label=ready&title=Ready)](https://waffle.io/patchoo/patchoo)
 Patchoo!
 ========
 
