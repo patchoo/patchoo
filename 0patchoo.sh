@@ -473,7 +473,7 @@ checkASU()
         # first clean up any packages that were installed from the appstore
 		find $pkgdatafolder -iname "*.asuinfo" | while read f
         do
-        	basefile=`basename $f asuinfo`
+        	basefile=$(basename "$f" ".asuinfo")
             if [[ ! " ${asupkgarray[@]//.} " =~ " ${basefile//.} " ]]; then
                 secho "$basefile not available or already installed. Removing..."
                 rm $f
