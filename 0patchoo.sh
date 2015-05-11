@@ -464,6 +464,17 @@ checkASU()
 		# let's parse the updates
 		asupkgarray=( $(cat "$swupdateout" | grep "\*" | cut -c6- ) )
 		asudescriptarray=( $(cat "$swupdateout" | grep -A2 "\*" | grep -v "\*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
+		
+		# first clean up any packages that were installed from the appstore - thanks galenrichards
+		find "$pkgdatafolder" -iname "*.asuinfo" | while read f
+	    do
+	    	basefile=$(basename "$f" ".asuinfo")
+	        if [[ ! " ${asupkgarray[@]//.} " =~ " ${basefile//.} " ]]; then
+	            secho "$basefile not available or already installed. Removing..."
+	            rm $f
+	        fi
+	    done
+	       
 		i=0
 		for asupkg in ${asupkgarray[@]} 
 		do
