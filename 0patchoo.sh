@@ -1622,7 +1622,9 @@ deployHandler()
 
 	secho "provision information complete, starting deployment ..."
 	sleep 3
-	# recon ?
+	# run recurring trigger before we start deploy, in case we have stuff we need to do on that - once per computer etc.
+	secho "firing recurring checkin trigger ..."
+	jamf policy
 	secho "firing deploy trigger ..."
 	jamf policy -trigger "deploy"
 	if $pdusebuildea
