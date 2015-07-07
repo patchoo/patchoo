@@ -73,6 +73,7 @@ asureleasecatalog[2]="beta"
 # patchooDeploy settings
 #
 pdusebuildea=true
+pdusesites=true
 pdusedepts=true
 pdusebuildings=false
 
@@ -1344,6 +1345,14 @@ checkAndReadProvisionInfo()
 		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
 	fi
 
+	if $pdusesites
+	then
+		sites=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/sites/text()" 2> /dev/null)
+		# error checking
+		echo "site:  $sites" >> "$pdprovisiontmp"
+		[ "$sites" == "" ] && pdprovisioninfo=false
+	fi
+
 	if $pdusedepts
 	then
 		department=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
@@ -1462,6 +1471,18 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 		patchoobuildvalue="$(choicePrompt)"
 	fi
 
+	if $pdusesites
+	then	
+		#read site choices
+		deptchoicearray=($(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/sites" | xpath //departments/sites/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		# error checking
+		for line in "${deptchoicearray[@]}"
+		do
+		    echo "$line" >> "$choicetmp"
+		done
+		sitevalue="$(choicePrompt)"
+	fi
+
 	if $pdusedepts
 	then	
 		#read dept choices
@@ -1496,6 +1517,14 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 </extension_attributes>
 </computer>
 " > "$patchoobuildeatmp"
+
+	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
+<computer>
+<location>
+<site>$sitevalue</site>
+</location>
+</computer>
+" > "$sitetmp"
 	
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
 <computer>
@@ -1534,6 +1563,12 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 		if $pdusebuildea
 		then
 			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
+			[ "$putresult" != "" ] && retryauth=true
+		fi
+
+		if $pdusesites
+		then
+			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$sitetmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
