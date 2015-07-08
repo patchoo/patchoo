@@ -144,7 +144,7 @@ log="jamf.log"
 ##################################
 
 osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need patch version
-udid=$( ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformudid/ { split($0, line, "\""); printf("%s\n", line[4]); }' )
+udid=$( ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { split($0, line, "\""); printf("%s\n", line[4]); }' )
 
 OLDIFS="$IFS"
 IFS=$'\n'
