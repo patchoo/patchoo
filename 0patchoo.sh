@@ -55,7 +55,7 @@ blockingapps=( "Microsoft PowerPoint" "Keynote" )
 jssgroup[0]="----PRODUCTION----"
 jssgroup[1]="patchooDev"
 jssgroup[2]="patchooBeta"
-	
+
 # these triggers are run based on group membership, index 0 is run after extra group.
 patchooswreleasemode=true
 updatetrigger[0]="update"
@@ -84,7 +84,7 @@ pdbuildea="patchoo Build"
 # do you want to prompt the console user to set attributes post enrollment? (not possible post casper imaging)
 pdpromptprovisioninfo=true
 
-# this api user requires update/write access to computer records (somewhat risky putting in here - see docs) 
+# this api user requires update/write access to computer records (somewhat risky putting in here - see docs)
 # leaving blank will prompt console user for a jss admin account during attribute set (as above)
 pdapiadminname=""
 pdapiadminpass=""
@@ -121,7 +121,7 @@ IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC 
 msgosupgradewarning="
 Your computer is peforming a major OS X upgrade.
 
-Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete. 
+Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete.
 
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 
@@ -179,7 +179,7 @@ jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url" 2> /
 daystamp=$(( $(date +%s) / 86400 )) # days since 1-1-70
 
 # due to issue with cocoaDialog outside of user session, this check as been added
-case $osxversion in	
+case $osxversion in
 	10.5 | 10.6 | 10.7 | 10.8 )
 		displayatlogout=true
 	;;
@@ -256,10 +256,10 @@ else
 fi
 
 # make tmp folder
-patchootmp="$(mktemp -d -t patchoo)" 
+patchootmp="$(mktemp -d -t patchoo)"
 
 #
-# common functions 
+# common functions
 #
 
 secho()
@@ -273,7 +273,7 @@ secho()
 	if [ "$timeout" != "" ]
 	then
 		echo "$name: USERNOTIFY: $title, $message"
-		echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY: $title, $message" >> "$logto/$log"			
+		echo "$(date "+%a %b %d %H:%M:%S") $computername $name-$version $mode: USERNOTIFY: $title, $message" >> "$logto/$log"
 
 		if [ "$(checkConsoleStatus)" == "userloggedin" ]
 		then
@@ -296,7 +296,7 @@ displayDialog()
 	button1="$5"
 	button2="$6"
 	button3="$7"
-	
+
 	# show the dialog...
 	"$cdialogbin" msgbox --title "$title" --icon "$icon"  --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
 }
@@ -319,14 +319,14 @@ checkConsoleStatus()
 		echo "screensaver"
 		return
 	fi
-	
+
 	if [ "$userloggedin" == "" ]
 	then
 		# no users logged in (at loginwindow)
 		echo "nologin"
 		return
 	fi
-	
+
 	if [ "$userloggedin" != "$consoleuser" ]
 	then
 		# a user is loggedin, but we are at loginwindow or we have multiple users logged in with switching (too hard for now)
@@ -338,7 +338,7 @@ checkConsoleStatus()
 	then
 		# get foreground app
 		fgapp=$(sudo -u "$userloggedin" osascript -e "tell application \"System Events\"" -e "return name of first application process whose frontmost is true" -e "end tell"  2> /dev/null) # avoid errors in log
-		# check for blocking apps		
+		# check for blocking apps
 		for app in ${blockingapps[@]}
 		do
 			if [ "$app" == "$fgapp" ]
@@ -366,7 +366,7 @@ checkProcess()
 spawnScript()
 {
 	# we use this so we can execute from self service.app and call a logout with out breaking policy execution.
-	# the script copies, then spawns itself 
+	# the script copies, then spawns itself
 	if [ "$spawned" != "--spawned" ]
 	then
 		tmpscript="$datafolder/$name-$RANDOM.sh"
@@ -375,7 +375,7 @@ spawnScript()
 		secho "spawned script $tmpscript"
 		"$tmpscript" --spawned '' '' $mode &
 		cleanUp
-		exit 0	
+		exit 0
 	fi
 }
 
@@ -390,7 +390,7 @@ cachePkg()
 	#	- checks for prereqs and calls policies if receipts not found
 	#	- gets pkg data from jss api and gives pkg friendly name in the gui
 	#
-	
+
 	# find the latest addition to the Waiting Room
 	pkgname=$(ls -t "/Library/Application Support/JAMF/Waiting Room/" | head -n 1 | grep -v .cache.xml)
 	if [ ! -f "$pkgdatafolder/$pkgname.caspinfo" ] && [ "$pkgname" != "" ]
@@ -398,14 +398,14 @@ cachePkg()
 		pkgext=${pkgname##*.} 	# handle zipped bundle pkgs
 		[ "$pkgext" == "zip" ] && pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 		# get pkgdata from the jss api
-		curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/packages/name/$pkgname" -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/packages/name/$(echo "$pkgname" | sed -e 's/ /\+/g')" -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
 		if [ "$pkgdescription" == "<info />" ] || [ "$pkgdescription" == "" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
 		then
 			if [ "$pkgext" == "zip" ]
 			then
-				pkgdescription=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/') 
+				pkgdescription=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 			else
 				pkgdescription=$(echo "$pkgnamelesszip" | sed 's/\(.*\)\..*/\1/')
 			fi
@@ -428,7 +428,7 @@ cachePkg()
 				# query the JSS for the prereqpolicy
 				secho "$prereqreceipt is required and NOT found"
 				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/policies/name/$prereqpolicy" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/policies/name/$(echo "$prereqpolicy" | sed -e 's/ /\+/g')" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
@@ -448,7 +448,7 @@ checkASU()
 		secho "os upgrade is cached, skipping apple software updates.."
 		return
 	fi
-	
+
 	if $patchooasureleasemode
 	then
 		getGroupMembership
@@ -464,7 +464,7 @@ checkASU()
 		# let's parse the updates
 		asupkgarray=( $(cat "$swupdateout" | grep "\*" | cut -c6- ) )
 		asudescriptarray=( $(cat "$swupdateout" | grep -A2 "\*" | grep -v "\*" | cut  -f1 -d, | cut -c2- | sed 's/[()]//g' ) )
-		
+
 		# first clean up any packages that were installed from the appstore - thanks galenrichards
 		find "$pkgdatafolder" -iname "*.asuinfo" | while read f
 	    do
@@ -474,9 +474,9 @@ checkASU()
 	            rm $f
 	        fi
 	    done
-	       
+
 		i=0
-		for asupkg in ${asupkgarray[@]} 
+		for asupkg in ${asupkgarray[@]}
 		do
 			if [ ! -f "$pkgdatafolder/$asupkg.asuinfo" ] # it hasn't been downloaded
 			then
@@ -491,7 +491,7 @@ checkASU()
 				secho "$asupkg already downloaded."
 			fi
 			(( i ++ ))
-		done 
+		done
 
 		# check for restart required
 		if [ "$(cat "$swupdateout" | grep "\[restart\]")" != "" ]
@@ -508,13 +508,13 @@ setASUCatalogURL()
 {
 	# in patchooasureleasemode mode patchoo takes care of re-writing client catalog urls so you can have dev/beta/prod catalogs based on jss group membership
 	# you set your catalogURL / swupdate server as you usually do in Casper, and it will re-write OS and branch specific URLs based on the local CatalogURL.
-	# it assumes that you have turned off updates via other mechanisms 
+	# it assumes that you have turned off updates via other mechanisms
 	currentswupdurl=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate CatalogURL 2> /dev/null)
-	
+
 	if [ "$currentswupdurl" != "" ]
 	then
 		asuserver="$(echo "$currentswupdurl" | cut -f-3 -d/)"
-		case $osxversion in	
+		case $osxversion in
 			10.5)
 				swupdateurl="$asuserver/content/catalogs/others/index-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
 				;;
@@ -562,7 +562,7 @@ buildUpdateLists()
 		casppkgdescrip=$(cat "$infofile")
 		echo -e "${casppriority}\t${casppkg}\t${casppkgdescrip}" >> "$casppkginfo"
 	done
-	
+
 	# if there is an OS Upgrade packge cached in the casper installs, skip the apple updates
 	if [ -f "$pkgdatafolder/.os-upgrade" ]
 	then
@@ -575,13 +575,13 @@ buildUpdateLists()
 			# check for SMC, EFI and Firmware updates, flag if so
 			[ "$(echo "$infofile" | grep EFIUpdate)" != "" ] && touch "$pkgdatafolder/.fw-update"
 			[ "$(echo "$infofile" | grep SMCUpdate)" != "" ] && touch "$pkgdatafolder/.fw-update"
-			[ "$(echo "$infofile" | grep Firmware)" != "" ] && touch "$pkgdatafolder/.fw-update"			
+			[ "$(echo "$infofile" | grep Firmware)" != "" ] && touch "$pkgdatafolder/.fw-update"
 			# set priorities for system and sec updates
 			asupriority=1
 			#  OSX supplemental for 10.8.5 broke the rules, not OSXUpd... this could catch other things too... hmm.
 			[ "$(echo "$infofile" | grep OSX)" != "" ] && asupriority="98"
 			# if it's a security or OSX update make it 99
-			[ "$(echo "$infofile" | grep SecUpd)" != "" ] && asupriority="99"	
+			[ "$(echo "$infofile" | grep SecUpd)" != "" ] && asupriority="99"
 			[ "$(echo "$infofile" | grep OSXUpd)" != "" ] && asupriority="99"
 			asupkg=$(basename "$infofile")	#get rid of path
 			asupkg="${asupkg%\.*}"		#remove ext.
@@ -603,7 +603,7 @@ buildUpdateLists()
 
 	# some output to the log file if not --quiet
 	if [ -f "$casppkginfo" ] && [ "$1" != "--quiet" ]
-	then		
+	then
 		secho "Casper pkgs waiting to be installed"
 		secho "--------------------------------------"
 		while read line
@@ -612,7 +612,7 @@ buildUpdateLists()
 		done < "$casppkginfo"
 		secho "--------------------------------------"
 	fi
-	
+
 	if [ -f "$asupkginfo" ] && [ "$1" != "--quiet" ]
 	then
 		secho "swupdate pkgs waiting to be installed"
@@ -632,7 +632,7 @@ installCasperPkg()
 	infofile="$pkgdatafolder/${casppkg}.caspinfo"
 	jamfinstallopts=""
 	# check if a reboot is required by casper package, flag if it is.
-	[ "$(cat "${infofile}.xml" | grep "<reboot_required>true</reboot_required>")" != "" ] && touch "$pkgdatafolder/.restart-required" 
+	[ "$(cat "${infofile}.xml" | grep "<reboot_required>true</reboot_required>")" != "" ] && touch "$pkgdatafolder/.restart-required"
 	# check for fut and feu
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<fut>true</fut>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<feu>true</feu>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
@@ -655,13 +655,13 @@ installCasperPkg()
 installSoftware()
 {
 	secho "starting installation ..."
-	
+
 	# generate the update list tmp files
 	buildUpdateLists --quiet
-	
-	# install all software	
+
+	# install all software
 	if [ -s "$casppkginfo" ] # there are casper updates waiting
-	then	 
+	then
 		if $bootstrapmode
 		then
 			# bootstrap mode doesn't need cocoadialog progress
@@ -674,13 +674,13 @@ installSoftware()
 				# use cocoadialog for gui
 				currentpercent=0
 				casptotal=$(cat "$casppkginfo" | wc -l)
-				total=$(( casptotal * 100 ))		 		
+				total=$(( casptotal * 100 ))
 		 		while read line
 		 		do
 					casppkgdescrip=$(echo "$line" | cut -f3)
 					installCasperPkg "$line" & # background the jamf install, we'll fudge a progressbar
 					caspinstallpid=$!
-					# we are fudging a progress bar, count up to 100, increase bar, until done, then 
+					# we are fudging a progress bar, count up to 100, increase bar, until done, then
 					for (( perfectcount=1; perfectcount<=100; perfectcount++ ))
 					do
 						percent=$(( ( (perfectcount + currentpercent) * 100 ) / total ))
@@ -691,7 +691,7 @@ installSoftware()
 						sleep 1
 					done
 					wait "$caspinstallpid" # if we have run out progress bar, wait for pid to complete.
-					currentpercent=$(( currentpercent + 100 )) # add another 100 for each completed install				
+					currentpercent=$(( currentpercent + 100 )) # add another 100 for each completed install
 				done < "$casppkginfo"
 				echo "100 Installation complete"
 				sleep 1
@@ -700,12 +700,12 @@ installSoftware()
 			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Software" --text "Starting Installation..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
 	fi
-	
+
 	if [ -s "$asupkginfo" ] # there are apple updates waiting
 	then
 		asucount=0
-		# bootstrap mode, no progress bars	
-		if $bootstrapmode 
+		# bootstrap mode, no progress bars
+		if $bootstrapmode
 		then
 			while read line
 			do
@@ -725,7 +725,7 @@ installSoftware()
 					asupkg=$(echo "$line" | cut -f2)
 					asupkgdescrip=$(echo "$line" | cut -f3)
 					secho "softwareupdate is installing $asupkg ..."
-					
+
 					# spawn the update process, and direct output to tmpfile for parsing (we probably should use a named pipe here... future...)
 					swupdcmd="softwareupdate -v -i $asupkg"
 					swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
@@ -736,7 +736,7 @@ installSoftware()
 					do
 						sleep 1
 						# get percent to update progressbar
-						percentout=$(cat "$swupdateout" | grep "Progress:" | tail -n1 | awk '{print $2}' | sed 's/\%//g') 
+						percentout=$(cat "$swupdateout" | grep "Progress:" | tail -n1 | awk '{print $2}' | sed 's/\%//g')
 						percent=$(( ( (percentout + currentpercent) * 100 ) / total ))
 						echo "$percent Installing $asupkgdescrip ..."
 					done
@@ -780,17 +780,17 @@ installSoftware()
 promptInstall()
 {
 	promptmode="$1"
-	
+
 	# build the lists of updates avail
 	if $bootstrapmode
 	then
 		# if boostrapping, build updatelists (also sets installsavail)
-		buildUpdateLists --quiet 
+		buildUpdateLists --quiet
 		return
 	else
 		buildUpdateLists
 	fi
-	
+
 	# if there are no updates
 	if [ "$installsavail" != "Yes" ]
 	then
@@ -805,10 +805,10 @@ promptInstall()
 		rm "$datafolder/.patchoo-selfservice-check"
 	fi
 
-	# there are waiting updates ... make a message for the user prompt	
+	# there are waiting updates ... make a message for the user prompt
 	secho "prompting user..."
 	message=""
-	
+
 	if [ -f "$casppkginfo" ]
 	then
 		while read line
@@ -828,7 +828,7 @@ promptInstall()
 	# add warnings if there are firmware/os upgrade pkgs
 	addWarnings
 
-	case $promptmode in	
+	case $promptmode in
 		"--logoutinstallsavail" )
 			#
 			# logout reminder prompt flags and 'returns' as we are already at a logout, so we can install directly within this session.
@@ -836,15 +836,15 @@ promptInstall()
 			makeMessage ""
 			makeMessage "$msginstalllater"
 			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Install and Restart..." "Install and Shutdown..." "Later")
-			
-			case $answer in			
+
+			case $answer in
 				"Install and Restart..." )
 					secho "user selected install and restart"
 					touch /tmp/.patchoo-install
 					touch /tmp/.patchoo-restart
 					preInstallWarnings
 					return
-				;;				
+				;;
 				"Install and Shutdown..." )
 					secho "user selected install and shutdown"
 					touch /tmp/.patchoo-install
@@ -866,22 +866,22 @@ promptInstall()
 				;;
 			esac
 		;;
-		
+
 		"--selfservice" )
 			#
-			# self service we don't tell people to use self service, we don't update the defer counter 
+			# self service we don't tell people to use self service, we don't update the defer counter
 			#
 			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Logout and Install..." "Cancel" )
-		;;		
-		
+		;;
+
 		*)
 			#
 			# this is the general prompt for the end of the update trigger run
 			#
-			
+
 			# check to see if we can display a prompt
 			consolestatus="$(checkConsoleStatus)"
-			
+
 			# some users just have blocking apps running constantly (Powerpoint / Keynote)
 			# we need to prompt them at some stage.
 			if $blockingappmode
@@ -931,18 +931,18 @@ promptInstall()
 						makeMessage ""
 						makeMessage "$msginstalllater"
 						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later" "Logout and Install...")
-				fi	
+				fi
 			else
 				# there something preventing a dialog, don't display anything, return the consolestatus
 				answer="$consolestatus"
 			fi
 		;;
-	
+
 	esac
 
 	# process the answer.
 	case $answer in
-		
+
 		"Logout and Install..." )
 			# this flags for install, and logs out the user, logout policy picks up the install flag and does installations.
 			secho "user selected install and logout..."
@@ -960,7 +960,7 @@ promptInstall()
 			rm /tmp/.patchoo-logoutdone
 			return # once this finishes fauxLogut will handle logout
 		;;
-		
+
 		"Later ($deferremain remaining)" )
 			# this decreases counter and displays a notification bubble.
 			secho "user selected install later, incrementing deferal counter.."
@@ -990,9 +990,9 @@ promptInstall()
 			secho "user missed this prompt - reason: $answer, flagged for reminder..."
 			touch "$pkgdatafolder/.prompt-missed-$daystamp"
 		;;
-	
+
 	esac
-	
+
 	# if we've cached new updates, recon the mac so it falls into the correct smart groups
 	[ -f "$datafolder/.patchoo-recon-required" ] && jamfRecon
 }
@@ -1003,7 +1003,7 @@ addWarnings()
 	then
 		makeMessage "$msgshortoswarn"
 		return # we don't want other warnings
-	fi	
+	fi
 
 	if [ -f "$pkgdatafolder/.fw-update" ]
 	then
@@ -1018,7 +1018,7 @@ preInstallWarnings()
 		displayDialog "$msgosupgradewarning" "OS Upgrade" "IMPORTANT NOTICE!" "caution" "I Understand... Install and Restart"
 		touch /tmp/.patchoo-restart-forced
 		return # we don't want other warnings
-	fi	
+	fi
 
 	if [ -f "$pkgdatafolder/.fw-update" ]
 	then
@@ -1033,7 +1033,7 @@ logoutUser()
 	osascript -e "ignoring application responses" -e "tell application \"loginwindow\" to $(printf \\xc2\\xab)event aevtrlgo$(printf \\xc2\\xbb)" -e "end ignoring"
 }
 
-# fauxLogout - added to workaround cocoaDialog not running outside a user session on mavericks+ - https://github.com/patchoo/patchoo/issues/16 
+# fauxLogout - added to workaround cocoaDialog not running outside a user session on mavericks+ - https://github.com/patchoo/patchoo/issues/16
 # thanks to Jon Stovell - bits inspired and stolen from quit script - http://jon.stovell.info/
 # loops through all user visible apps, quits, writes lsuielement changes to cocoa (prevent dock showing), uses ARD lockscreen to blank screen out.
 getAppList()
@@ -1078,8 +1078,8 @@ fauxLogout()
 			quitAllApps
 		fi
 	done
-	
-	# thanks mm2270 (https://github.com/mm2270) for this technique! 
+
+	# thanks mm2270 (https://github.com/mm2270) for this technique!
 	# move the standard lock logo out of lockscreen app (we don't want a big padlock)
 	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
 	if [ -f "$lockscreenlogo" ]
@@ -1138,7 +1138,7 @@ processLogout()
 			fi
 		fi
 	fi
-	
+
 	# process a restart or shutdown
 	if [ -f "$datafolder/.patchoo-recon-required" ]
 	then
@@ -1151,7 +1151,7 @@ processLogout()
 			jamfRecon &
 		fi
 	fi
-	
+
 	if [ -f /tmp/.patchoo-restart-forced ]
 	then
 		touch /tmp/.patchoo-restart # forced restart to trump shutdown, need restarts for FW and OS Upgrades
@@ -1159,7 +1159,7 @@ processLogout()
 		rm /tmp/.patchoo-restart-forced
 	fi
 
-	if [ -f /tmp/.patchoo-shutdown ] 
+	if [ -f /tmp/.patchoo-shutdown ]
 	then
 		secho "shutting down now!"
 		[ -f /tmp/.patchoo-restart ] && rm /tmp/.patchoo-restart # remove this, shutdown trumps restart request by a pkg
@@ -1183,7 +1183,7 @@ jamfPolicyUpdate()
 		getGroupMembership
 		if [ "$groupid" != "0" ]
 		then
-			secho "jamf is firing ${updatetrigger[$groupid]} trigger ..." 
+			secho "jamf is firing ${updatetrigger[$groupid]} trigger ..."
 			jamf policy -trigger "${updatetrigger[$groupid]}"
 		fi
 	fi
@@ -1207,7 +1207,7 @@ getGroupMembership()
 		# we don't check against the production
 		if [ "$checkgroup" != "----PRODUCTION----" ]
 		then
-			# if find matching group, return out 
+			# if find matching group, return out
 			[ "$(cat "$jssgroupfile" | grep "$checkgroup")" != "" ] && return
 		fi
 		(( groupid ++ ))
@@ -1245,7 +1245,7 @@ remindInstall()
 {
 	# run this on every120, scoped to a smart group
 	if [ "$installsavail" == "Yes" ]
-	then		
+	then
 		if $defermode
 		then
 			# naughty users realised they could ignore the prompts... no more... if you miss all prompts in a day, the defer counter is increased the next day. bam.
@@ -1256,7 +1256,7 @@ remindInstall()
 				secho "user missed prompts yesterday, increasing defer count to $defercount"
 				defaults write "$prefs" DeferCount -int $defercount
 				rm "$pkgdatafolder/.prompt-missed-$yesterdaystamp"
-			fi	
+			fi
 			if [ -f "$pkgdatafolder/.prompt-missed-$daystamp" ]
 			then
 				# if there is missed prompt flag for today, bring up the reminder
@@ -1278,7 +1278,7 @@ remindInstall()
 			secho "Please launch Self Service and select Install New Software" 8 "$msgtitlenewsoft" "notice"
 		fi
 	fi
-}	
+}
 
 startup()
 {
@@ -1290,9 +1290,9 @@ startup()
 updateHandler()
 {
 	jamfRecon
-	jamfPolicyUpdate 
+	jamfPolicyUpdate
 	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null) 	# check if updates are avaialble
-	
+
 	while [ "$installsavail" == "Yes" ]
 	do
 		installSoftware
@@ -1333,9 +1333,9 @@ checkAndReadProvisionInfo()
 	secho "reading provisioning info from jss..."
 	pdprovisiontmp="$patchootmp/patchooprovisioninfo.tmp"
 	[ -f "$pdprovisiontmp" ] && rm "$pdprovisiontmp"
-	
+
 	# read the values as required, if missing, return false
-	pdprovisioninfo=true	
+	pdprovisioninfo=true
 	if $pdusebuildea
 	then
 		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
@@ -1391,7 +1391,7 @@ promptAndSetComputerName()
 		secho "current computername is $computername"
 		validcomputername=false
 		until $validcomputername
-		do 
+		do
 			newcomputername=$(osascript -e "display dialog \"Please confirm this Mac's computername\" default answer \"$computername\" buttons {\"Confirm and Set\"} default button 1 giving up after 600" | cut -d, -f2 | cut -d: -f2)
 			if [ "$newcomputername" == "" ]
 			then
@@ -1451,7 +1451,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	fi
 
 	if $pdusebuildea
-	then	
+	then
 		#read patchoobuilds
 		patchoobuildchoicearray=($(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
 		# error checking
@@ -1463,7 +1463,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	fi
 
 	if $pdusedepts
-	then	
+	then
 		#read dept choices
 		deptchoicearray=($(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/departments" | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
 		# error checking
@@ -1496,7 +1496,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 </extension_attributes>
 </computer>
 " > "$patchoobuildeatmp"
-	
+
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
 <computer>
 <location>
@@ -1504,7 +1504,7 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 </location>
 </computer>
 " > "$depttmp"
-	
+
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
 <computer>
 <location>
@@ -1520,14 +1520,14 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 			tmpapiadminuser=$(osascript -e "display dialog \"Please enter your JSS admin username:\" default answer \"\" buttons {\"OK\"} default button 1 giving up after 9999" | cut -d, -f2 | cut -d: -f2)
 		else
 			tmpapiadminuser="$pdapiadminname"
-		fi		
+		fi
 		if [ "$pdapiadminpass" == "" ]
-		then	
+		then
 			tmpapiadminpass=$(osascript -e "display dialog \"Please enter your JSS admin password:\" default answer \"\" buttons {\"OK\"} default button 1 giving up after 9999 with hidden answer"| cut -d, -f2 | cut -d: -f2)
 		else
 			tmpapiadminpass="$pdapiadminpass"
 		fi
-		
+
 		# put the xml to api
 		retryauth=false
 
@@ -1590,7 +1590,7 @@ deploySetup()
 	bootstrapSetup # setup bootstrap bits
 
 	secho "patchoo deploy is ready"
-	
+
 	if [ "$(checkConsoleStatus)" == "userloggedin" ] # if a user is logged in, prompt and restart... otherwise we'll sort that via a launchd or other method
 	then
 		osascript -e "display dialog \"Ready to provison. This Mac will restart in 2 minutes\"  buttons {\"Restart Now\"} default button 1 giving up after 120"
@@ -1775,7 +1775,7 @@ $message"
 		fi
 		sleep 3 # check for new message every 3 seconds
 	done
-	
+
 	# uncaffeninate
 	kill "$caffeinatepid"
 }
@@ -1785,10 +1785,10 @@ jamfRecon()
 	secho "jamf is running a recon ..."
 	if [ "$1" == "--feedback" ]
 	then
-		( jamf recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
+		( jamf recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 	else
 		jamf recon
-	fi		
+	fi
 	# if there is flag, remove it
 	[ -f "$datafolder/.patchoo-recon-required" ] && rm "$datafolder/.patchoo-recon-required"
 	secho "recon finished"
@@ -1808,7 +1808,7 @@ echo "$name $version $mode - $(date "+%a %b %d %H:%M:%S")"
 
 # parse modes
 case $mode in
-	
+
 	"--cache" )
 		# run after caching package in policy to add metadata.
 		cachePkg
@@ -1823,7 +1823,7 @@ case $mode in
 		# install mode prompts user to install, called post cache.
 		promptInstall
 	;;
-	
+
 	"--promptinstallss" )
 		# prompt from selfservice
 		promptInstallSS
@@ -1843,7 +1843,7 @@ case $mode in
 		#run on startup, recon if we've just installed updates that required a reboot
 		startup
 	;;
-	
+
 	"--logout" )
 		# this is triggered by the logout hook, we do out installs on logout
 		processLogout
