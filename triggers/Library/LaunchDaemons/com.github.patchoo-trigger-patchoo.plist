@@ -6,7 +6,7 @@
 	<string>com.github.patchoo-trigger-patchoo</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/usr/sbin/jamf</string>
+		<string>/usr/local/bin/jamf</string>
 		<string>policy</string>
 		<string>-trigger</string>
 		<string>patchoo</string>
