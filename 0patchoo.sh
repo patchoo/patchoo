@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.9956"
+version="0.9957"
 
 # read only api user please!
 apiuser="apiuser"
@@ -27,6 +27,8 @@ pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
 cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
+
+installcdttrigger="name of custom trigger to install cocoadialog"
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
 selfsignedjsscert=true
@@ -151,8 +153,8 @@ IFS=$'\n'
 
 if [ ! -d "$cdialog" ]
 then
-	echo "FATAL: I can't find cocoadialog, stopping 'ere"
-	exit 1
+	echo "WARNING: CocoaDialog is missing. Triggering JSS install policy."
+	jamf policy -trigger $installcdttrigger
 fi
 
 # command line paramaters
