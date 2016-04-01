@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.9953"
+version="0.9957"
 
 # read only api user please!
 apiuser="apiuser"
@@ -27,6 +27,8 @@ pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
 cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
+
+installcdttrigger="name of custom trigger to install cocoadialog"
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
 selfsignedjsscert=true
@@ -73,6 +75,7 @@ asureleasecatalog[2]="beta"
 # patchooDeploy settings
 #
 pdusebuildea=true
+pdusesites=true
 pdusedepts=true
 pdusebuildings=false
 
@@ -143,16 +146,16 @@ log="jamf.log"
 ##################################
 
 osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need patch version
-macaddress=$(networksetup -getmacaddress en0 | awk '{ print $3 }' | sed 's/:/./g')
+udid=$( ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { split($0, line, "\""); printf("%s\n", line[4]); }' )
 
 OLDIFS="$IFS"
 IFS=$'\n'
 
-#if [ ! -d "$cdialog" ]
-#then
-#	echo "FATAL: I can't find cocoadialog, stopping 'ere"
-#	exit 1
-#fi
+if [ ! -d "$cdialog" ]
+then
+	echo "WARNING: CocoaDialog is missing. Triggering JSS install policy."
+	jamf policy -trigger $installcdttrigger
+fi
 
 # command line paramaters
 mode="$4"
@@ -178,16 +181,9 @@ jssurl=$(defaults read /Library/Preferences/com.jamfsoftware.jamf "jss_url" 2> /
 
 daystamp=$(( $(date +%s) / 86400 )) # days since 1-1-70
 
-# due to issue with cocoaDialog outside of user session, this check as been added
-case $osxversion in	
-	10.5 | 10.6 | 10.7 | 10.8 )
-		displayatlogout=true
-	;;
-	*)
-		displayatlogout=false
-	;;
-esac
+# cocoaDialog issue fixed.
 
+displayatlogout=true
 
 # create the data folder if it doesn't exist
 [ ! -d "$datafolder" ] && mkdir -p "$datafolder"
@@ -1200,7 +1196,7 @@ getGroupMembership()
 	if [ ! -f "$jssgroupfile" ]
 	then
 		secho "getting computer group membership ..."
-		curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/computers/macaddress/$macaddress" | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
+		curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass"  "${jssurl}JSSResource/computers/udid/$udid" | xpath //computer/groups_accounts/computer_group_memberships[1] 2> /dev/null | sed -e 's/<computer_group_memberships>//g;s/<\/computer_group_memberships>//g;s/<group>//g;s/<\/group>/\n/g' > "$jssgroupfile"
 	fi
 	for checkgroup in ${jssgroup[@]}
 	do
@@ -1338,15 +1334,23 @@ checkAndReadProvisionInfo()
 	pdprovisioninfo=true	
 	if $pdusebuildea
 	then
-		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
+		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
 		# error checking
 		echo "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
 		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
 	fi
 
+	if $pdusesites
+	then
+		sites=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/sites/text()" 2> /dev/null)
+		# error checking
+		echo "site:  $sites" >> "$pdprovisiontmp"
+		[ "$sites" == "" ] && pdprovisioninfo=false
+	fi
+
 	if $pdusedepts
 	then
-		department=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
+		department=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
 		# error checking
 		echo "department:  $department" >> "$pdprovisiontmp"
 		[ "$department" == "" ] && pdprovisioninfo=false
@@ -1354,7 +1358,7 @@ checkAndReadProvisionInfo()
 
 	if $pdusebuildings
 	then
-		building=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
+		building=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
 		# error checkingx
 		echo "building:  $building" >> "$pdprovisiontmp"
 		[ "$building" == "" ] && pdprovisioninfo=false
@@ -1368,45 +1372,34 @@ checkAndReadProvisionInfo()
 	fi
 }
 
-choicePrompt()
-{
-	promptdata=$(osascript << EOF
-	tell app "System Events" to activate
-	set choicelist to every paragraph of (do shell script ("cat $choicetmp"))
-	set choice to {choose from list choicelist}
-	return choice
-EOF
-	)
-	# error checking
-	echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
-	rm "$choicetmp"
-}
 
 promptAndSetComputerName()
 {
 	# this computer must existing in the JSS... as we've been enrolled!
-	computername=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/general" | xpath "//computer/general/name/text()" 2> /dev/null)
+	computername=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/general" | xpath "//computer/general/name/text()" 2> /dev/null)
 	if $pdsetcomputername
 	then
 		secho "current computername is $computername"
 		validcomputername=false
 		until $validcomputername
 		do 
-			newcomputername=$(osascript -e "display dialog \"Please confirm this Mac's computername\" default answer \"$computername\" buttons {\"Confirm and Set\"} default button 1 giving up after 600" | cut -d, -f2 | cut -d: -f2)
+			choice=$( $cdialogbin inputbox --width 430 --height 140 --title "Computer Name" --informative-text "Please confirm this Mac's computername" --text $computername --string-output --float --button1 "Confirm and Set" )
+			newcomputername=$( echo $choice | awk '{ print $4 }' )
 			if [ "$newcomputername" == "" ]
 			then
-				osascript -e "display dialog \"The computername can not be blank\" buttons {\"Oops\"} default button 1 giving up after 120"
+				$cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "The computer name cannot be blank" --icon hazard --float --timeout 90 --button1 "Oops"
 				continue
 			else
 				# lookup jss to ensure computername isn't in use
-				macaddresslookup=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/name/$(echo "$newcomputername" | sed -e 's/ /\+/g')/subset/general" | xpath "//computer/general/mac_address/text()" 2> /dev/null | sed 's/:/./g' | tr '[:upper:]' '[:lower:]')
-				if [ "$macaddresslookup" == "" ] || [ "$macaddresslookup" == "$macaddress" ] # no entry, or our entry - ok to go
+				udidlookup=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/name/$(echo "$newcomputername" | sed -e 's/ /\+/g')/subset/general" | xpath "//computer/general/mac_address/text()" 2> /dev/null | sed 's/:/./g' | tr '[:upper:]' '[:lower:]')
+				if [ "$udidlookup" == "" ] || [ "$udidlookup" == "$udid" ] # no entry, or our entry - ok to go
 				then
 					computername="$newcomputername"
 					validcomputername=true
 				else
 					# another computer with this name exists in the JSS
-					osascript -e "display dialog \"A Mac named $newcomputername already exists in the JSS.\" buttons {\"Oops\"} default button 1 giving up after 120"
+					$cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "A Mac named $newcomputername already exists in the JSS." --icon hazard --float --timeout 90 --button1 "Oops"
+
 				fi
 			fi
 		done
@@ -1430,19 +1423,16 @@ promptProvisionInfo()
 	then
 		secho "prompting user to change provision info..."
 		provisiondetails=$(cat "$pdprovisiontmp")
-		changeprovisioninfoprompt=$(osascript -e "display dialog \"This Mac has the following provisioning information:
+		changeprovisioninfoprompt=$( $cdialogbin textbox --title "Mac Provisioning Information" --informative-text "This Mac has the following provisioning information:" --text $provisiondetails --string-output --float --timeout 600 --button2 "Change" --button1 "Continue" )
 
-$provisiondetails
-
-Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} default button 2 giving up after 600" | cut -d, -f1 | cut -d: -f2)
-		if [ "$changeprovisioninfoprompt" == "Continue Deployment" ]
+		if [ "$changeprovisioninfoprompt" == "Continue" ]
 		then
 			deployready=true
 			return 0
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$(osascript -e "display dialog \"This Mac has incomplete provisioning information\"  buttons {\"Set Provisioning Info...\",\"Skip\"} default button 2 giving up after 9999" | cut -d, -f1 | cut -d: -f2)
+		skipprompt=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button2 "Set Info" --button1 "Skip" )
 		if [ "$skipprompt" == "Skip" ]
 		then
 			deployready=true
@@ -1451,38 +1441,95 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	fi
 
 	if $pdusebuildea
-	then	
-		#read patchoobuilds
-		patchoobuildchoicearray=($(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
+	then
+		#read patchoobuilds	
+		patchoobuildchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed 's/..$//' )
+		OIFS=$IFS
+		IFS=$','
 		# error checking
 		for line in "${patchoobuildchoicearray[@]}"
 		do
-		    echo "$line" >> "$choicetmp"
+			echo "$line" >> "$choicetmp"
 		done
-		patchoobuildvalue="$(choicePrompt)"
+		
+		# pop up choices dialog box. strip button report as we only want the department name.
+		patchoobuildvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "EA" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		patchoobuildvalue=$( echo $deptvalue | sed -n 2p )
+		IFS=$OIFS
+		
+		# error checking
+		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		rm "$choicetmp"
+	fi
+
+	if $pdusesites
+	then
+		#read building choices	
+		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		siteschoicearray=$( echo $siteschoicearray | sed 's/..$//' )
+		OIFS=$IFS
+		IFS=$','
+		# error checking
+		for line in "${siteschoicearray[@]}"
+		do
+			echo "$line" >> "$choicetmp"
+		done
+		
+		# pop up choices dialog box. strip button report as we only want the building name.
+		sitesvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Site" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		sitesvalue=$( echo $sitesvalue | sed -n 2p )
+		IFS=$OIFS
+		
+		# error checking
+		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		rm "$choicetmp"
 	fi
 
 	if $pdusedepts
-	then	
-		#read dept choices
-		deptchoicearray=($(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/departments" | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+	then
+		#read dept choices	
+		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		deptchoicearray=$( echo $deptchoicearray | sed 's/..$//' )
+		OIFS=$IFS
+		IFS=$','
 		# error checking
 		for line in "${deptchoicearray[@]}"
 		do
-		    echo "$line" >> "$choicetmp"
+			echo "$line" >> "$choicetmp"
 		done
-		deptvalue="$(choicePrompt)"
+		
+		# pop up choices dialog box. strip button report as we only want the department name.
+		deptvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Department" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		deptvalue=$( echo $deptvalue | sed -n 2p )
+		IFS=$OIFS
+		
+		# error checking
+		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		rm "$choicetmp"
 	fi
 
 	if $pdusebuildings
 	then
-		#read building choices
-		buildingchoicearray=($(curl $curlopts -H "Accept: application/xml"  -s -u "$apiuser:$apipass" "${jssurl}JSSResource/buildings" | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
+		#read building choices	
+		buildingchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		buildingchoicearray=$( echo $buildingchoicearray | sed 's/..$//' )
+		OIFS=$IFS
+		IFS=$','
+		# error checking
 		for line in "${buildingchoicearray[@]}"
 		do
-		    echo "$line" >> "$choicetmp"
+			echo "$line" >> "$choicetmp"
 		done
-		buildingvalue="$(choicePrompt)"
+		
+		# pop up choices dialog box. strip button report as we only want the building name.
+		buildingvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Building" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		buildingvalue=$( echo $deptvalue | sed -n 2p )
+		IFS=$OIFS
+		
+		# error checking
+		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		rm "$choicetmp"
 	fi
 
 	# write out xml for put to api
@@ -1496,6 +1543,14 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 </extension_attributes>
 </computer>
 " > "$patchoobuildeatmp"
+
+	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
+<computer>
+<location>
+<site>$sitevalue</site>
+</location>
+</computer>
+" > "$sitetmp"
 	
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
 <computer>
@@ -1517,13 +1572,15 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 	do
 		if [ "$pdapiadminname" == "" ]
 		then
-			tmpapiadminuser=$(osascript -e "display dialog \"Please enter your JSS admin username:\" default answer \"\" buttons {\"OK\"} default button 1 giving up after 9999" | cut -d, -f2 | cut -d: -f2)
+			entry=$( $cdialogbin inputbox --width 430 --height 140 --title "Username" --informative-text "Please enter your username:" --text $hardcode --string-output --float --button1 "Ok" )
+			tmpapiadminuser=$( echo $entry | awk '{ print $2 }' )
 		else
 			tmpapiadminuser="$pdapiadminname"
 		fi		
 		if [ "$pdapiadminpass" == "" ]
 		then	
-			tmpapiadminpass=$(osascript -e "display dialog \"Please enter your JSS admin password:\" default answer \"\" buttons {\"OK\"} default button 1 giving up after 9999 with hidden answer"| cut -d, -f2 | cut -d: -f2)
+			entry=$( $cdialogbin inputbox --width 430 --height 140 --title "Password" --informative-text "Please enter your password:" --text $hardcode --string-output --float --button1 "Ok" )
+			tmpapiadminpass=$( echo $entry | awk '{ print $2 }' )	
 		else
 			tmpapiadminpass="$pdapiadminpass"
 		fi
@@ -1533,26 +1590,33 @@ Would you like to change?\"  buttons {\"Change...\",\"Continue Deployment\"} def
 
 		if $pdusebuildea
 		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
+			[ "$putresult" != "" ] && retryauth=true
+		fi
+
+		if $pdusesites
+		then
+			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" -T "$sitetmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusedepts
 		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$depttmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" -T "$depttmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusebuildings
 		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/macaddress/$macaddress/subset/location" -T "$buildingtmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" -T "$buildingtmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $retryauth
 		then
-			tryagain=$(osascript -e "display dialog \"The admin username or password was incorrect\"  buttons {\"Skip set provisioning info\",\"Try Again\"} default button 2 giving up after 9999" | cut -d, -f1 | cut -d: -f2)
-			[ "$tryagain" == "Try Again" ] && continue # loop again
+			entry=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "The admin username or password was incorrect" --string-output --icon hazard --float --timeout 90 --button1 "Ok" --button2 "Skip" )
+			tryagain=$( echo $entry | awk '{ print $2 }' )
+			[ "$tryagain" == "Ok" ] && continue # loop again
 		fi
 		# if we are here, all good to go
 		deployready=true
@@ -1567,13 +1631,7 @@ deploySetup()
 	touch "$pddeployreceipt"
 	deployready=false
 
-	if [ "$(checkConsoleStatus)" != "userloggedin" ] # if we don't have a logged in user, we are probably running post casper imaging or quickadd is pushed, so it's unpossible to prompt for info... skip..
-	then
-		secho "no user console session, we can't prompt for provisioning info"
-		deployready=true
-	fi
-
-	osascript -e "display dialog \"$msgpatchoodeploywelcome\"  buttons {\"...\"} default button 1 giving up after 5"
+	$cdialogbin msgbox --width 400 --height 140 --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 5 --button1 "Ok"
 
 	until $deployready
 	do
@@ -1593,7 +1651,7 @@ deploySetup()
 	
 	if [ "$(checkConsoleStatus)" == "userloggedin" ] # if a user is logged in, prompt and restart... otherwise we'll sort that via a launchd or other method
 	then
-		osascript -e "display dialog \"Ready to provison. This Mac will restart in 2 minutes\"  buttons {\"Restart Now\"} default button 1 giving up after 120"
+		$cdialogbin msgbox --width 400 --height 140 --title "Provisioning" --informative-text "Ready to provison. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
 		#logoutUser
 		#sleep 10 # not pretty
 		reboot &
