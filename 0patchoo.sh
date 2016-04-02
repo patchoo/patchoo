@@ -1455,7 +1455,7 @@ promptProvisionInfo()
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
 		patchoobuildvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "EA" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
-		patchoobuildvalue=$( echo $deptvalue | sed -n 2p )
+		patchoobuildvalue=$( echo $patchoobuildvalue | sed -n 2p )
 		IFS=$OIFS
 		
 		# error checking
@@ -1524,7 +1524,7 @@ promptProvisionInfo()
 		
 		# pop up choices dialog box. strip button report as we only want the building name.
 		buildingvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Building" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
-		buildingvalue=$( echo $deptvalue | sed -n 2p )
+		buildingvalue=$( echo $buildingvalue | sed -n 2p )
 		IFS=$OIFS
 		
 		# error checking
