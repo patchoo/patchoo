@@ -1443,7 +1443,7 @@ promptProvisionInfo()
 	if $pdusebuildea
 	then
 		#read patchoobuilds	
-		patchoobuildchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		patchoobuildchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed 's/..$//' )
 		OIFS=$IFS
 		IFS=$','
@@ -1466,7 +1466,7 @@ promptProvisionInfo()
 	if $pdusesites
 	then
 		#read building choices	
-		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		siteschoicearray=$( echo $siteschoicearray | sed 's/..$//' )
 		OIFS=$IFS
 		IFS=$','
@@ -1489,7 +1489,7 @@ promptProvisionInfo()
 	if $pdusedepts
 	then
 		#read dept choices	
-		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		deptchoicearray=$( echo $deptchoicearray | sed 's/..$//' )
 		OIFS=$IFS
 		IFS=$','
@@ -1512,7 +1512,7 @@ promptProvisionInfo()
 	if $pdusebuildings
 	then
 		#read building choices	
-		buildingchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		buildingchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		buildingchoicearray=$( echo $buildingchoicearray | sed 's/..$//' )
 		OIFS=$IFS
 		IFS=$','
