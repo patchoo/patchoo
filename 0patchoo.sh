@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.9957"
+version="0.9958"
 
 # read only api user please!
 apiuser="apiuser"
@@ -26,9 +26,11 @@ datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
 cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
+tnotify="/Applications/Utilities/terminal-notifier.app" #please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 installcdttrigger="name of custom trigger to install cocoadialog"
+installtnotifytrigger="name of custom trigger to install terminal notifier"
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
 selfsignedjsscert=true
@@ -157,6 +159,12 @@ then
 	jamf policy -trigger $installcdttrigger
 fi
 
+if [ ! -d "$tnotify" ]
+then
+	echo "WARNING: Terminal Notify is missing. Triggering JSS install policy."
+	jamf policy -trigger $installtnotifytrigger
+fi
+
 # command line paramaters
 mode="$4"
 prereqreceipt="$5"
@@ -172,6 +180,7 @@ else
 fi
 
 cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
+tnotifybin="${tnotify}/Contents/MacOS/terminal-notify"
 bootstrapagent="/Library/LaunchAgents/com.github.patchoo-bootstrap.plist"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
@@ -275,7 +284,8 @@ secho()
 		then
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			"$cdialogbin" bubble --title "$title" --text "$message" --icon "$icon" --timeout "$timeout" &
+			"$tnotifybin" -title "$title" -message "$message" &
+			# "$cdialogbin" bubble --title "$title" --text "$message" --icon "$icon" --timeout "$timeout" &
 		fi
 	else
 		echo "$name: $message"
