@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.9958"
+version="0.9959"
 
 # read only api user please!
 apiuser="apiuser"
@@ -47,7 +47,7 @@ blockingappmode=true
 defaultblockappthreshold="2" # if missed at lunch, then 2x2 hours later... should prompt in afternoon?
 
 # if these apps are in the foreground notifications will not be displayed, presentation apps ? (check with names- sleep 5; osascript -e 'tell application "System Events"' -e 'set frontApp to name of first application process whose frontmost is true' -e 'end tell')
-blockingapps=( "Microsoft PowerPoint" "Keynote" )
+blockingapps=( "Microsoft PowerPoint" "Keynote" "GoToMeeting" )
 
 # this order will correspond to the updatetriggers and asurelease catalogs
 # eg. 	jssgroup[2]="patchooBeta"
@@ -1088,24 +1088,28 @@ fauxLogout()
 		fi
 	done
 	
-	# thanks mm2270 (https://github.com/mm2270) for this technique! 
+	# thanks mm2270 (https://github.com/mm2270) for this technique!
+	# Modified by Franton to deal with System Integrity Protection.
+	# Copy the lockscreen.app with cp elsewhere on the system and modify THAT instead.
+	cp -r /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app $patchootmp/LockScreen.app
+	 
 	# move the standard lock logo out of lockscreen app (we don't want a big padlock)
-	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup
+	mv $patchootmp/LockScreen.app/Contents/Resources/Lock.jpg $patchootmp/LockScreen.app/Contents/Resources/Lock.jpg.backup
+	
 	if [ -f "$lockscreenlogo" ]
 	then
 		sips -s format png --resampleWidth 512 "$lockscreenlogo" --out "$patchootmp/Lock.jpg" 2> /dev/null # it will throw an error about and png being name jpg
-		mv "$patchootmp/Lock.jpg" /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
+		mv "$patchootmp/Lock.jpg" $patchootmp/LockScreen.app/Contents/Resources/Lock.jpg
 	fi
+
 	# lock screen
-	/System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/MacOS/LockScreen & 2> /dev/null
+	$patchootmp/LockScreen.app/Contents/MacOS/LockScreen & 2> /dev/null
 	sleep 1
+
 	# makes changes to cocoaDialog
 	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 0
 	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 3
 	chmod 644 "${cdialog}/Contents/Info.plist"
-
-	# put the lock screen logo back, in case system update does something to remotemanagement bundles
-	mv /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg.backup /System/Library/CoreServices/RemoteManagement/AppleVNCServer.bundle/Contents/Support/LockScreen.app/Contents/Resources/Lock.jpg
 
 	touch /tmp/.patchoo-logoutdone
 	installpid=$(cat /tmp/.patchoo-install-pid)
@@ -1123,6 +1127,10 @@ fauxLogout()
 	chmod 644 "${cdialog}/Contents/Info.plist"
 	# unlock and logout
 	killall LockScreen
+	
+	# Clean up modified lockscreen app
+	rm -rf $patchootmp/LockScreen.app
+	
 	logoutUser # the logout policy will handle recon / restart / shutdown requests
 
 )
