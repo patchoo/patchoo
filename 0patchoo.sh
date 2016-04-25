@@ -539,6 +539,9 @@ setASUCatalogURL()
 			10.10)
 				swupdateurl="$asuserver/content/catalogs/others/index-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1_${asureleasecatalog[$groupid]}.sucatalog"
 				;;
+			10.11)
+				swupdateurl="$asuserver/content/catalogs/others/index-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog_${asureleasecatalog[$groupid]}.sucatalog"
+				;;
 			*)
 				secho "I can't do this OS X version.. sadface."
 				return
