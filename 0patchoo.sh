@@ -316,7 +316,7 @@ makeMessage()
 checkConsoleStatus()
 {
 	userloggedin="$(who | grep console | awk '{print $1}')"
-	consoleuser="$(ls -l /dev/console | awk '{print $3}')"
+	consoleuser="$(python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')"
 	screensaver="$(pgrep ScreenSaverEngine)"
 
 	if [ "$screensaver" != "" ]
