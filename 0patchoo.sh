@@ -19,18 +19,26 @@ name="patchoo"
 version="0.9959"
 
 # read only api user please!
-apiuser="apiuser"
-apipass="apipass"
+apiuser="apirw"
+apipass="apirw"
 
-datafolder="/Library/Application Support/patchoo"
+datafolder="/usr/local/cloudmac/misc"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
-cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
-tnotify="/Applications/Utilities/terminal-notifier.app" #please specify the appbundle rather than the actual binary
+cdialog="/usr/local/cloudmac/bin/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
+tnotify="/usr/local/cloudmac/bin/terminal-notifier.app" #please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
-installcdttrigger="name of custom trigger to install cocoadialog"
-installtnotifytrigger="name of custom trigger to install terminal notifier"
+# Where's the jamf binary stored? This is for SIP compatibility.
+jb=`/usr/bin/which jamf`
+
+ if [[ "$jb" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ ! -e "/usr/local/bin/jamf" ]]; then
+    jb="/usr/sbin/jamf"
+ elif [[ "$jamf_binary" == "" ]] && [[ ! -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+    jb="/usr/local/bin/jamf"
+ elif [[ "$jamf_binary" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+    jb="/usr/local/bin/jamf"
+ fi
 
 # if you are using a self signed cert for you jss, tell curl to allow it.
 selfsignedjsscert=true
@@ -61,14 +69,14 @@ jssgroup[1]="patchooDev"
 jssgroup[2]="patchooBeta"
 	
 # these triggers are run based on group membership, index 0 is run after extra group.
-patchooswreleasemode=true
+patchooswreleasemode=false
 updatetrigger[0]="update"
 updatetrigger[1]="update-dev"
 updatetrigger[2]="update-beta"
 
 # if using patchoo asu release mode these will be appended to computer's SoftwareUpdate server catalogs as per reposado forks -- if not using asu release mode the computer's SwUpdate server will remain untouched.
 # eg. http://swupdate.your.domain:8088/content/catalogs/others/index-leopard.merged-1${asureleasecatalogs[i]}.sucatalog
-patchooasureleasemode=true
+patchooasureleasemode=false
 asureleasecatalog[0]="prod"
 asureleasecatalog[1]="dev"
 asureleasecatalog[2]="beta"
@@ -76,12 +84,12 @@ asureleasecatalog[2]="beta"
 #
 # patchooDeploy settings
 #
-pdusebuildea=true
+pdusebuildea=false
 pdusesites=true
 pdusedepts=true
-pdusebuildings=false
+pdusebuildings=true
 
-pdsetcomputername=true # prompt to set computername
+pdsetcomputername=false # prompt to set computername
 
 # the name of your ext attribute to use as the patchooDeploy build identfier - a populated dropdown EA.
 pdbuildea="patchoo Build"
@@ -91,8 +99,8 @@ pdpromptprovisioninfo=true
 
 # this api user requires update/write access to computer records (somewhat risky putting in here - see docs) 
 # leaving blank will prompt console user for a jss admin account during attribute set (as above)
-pdapiadminname=""
-pdapiadminpass=""
+pdapiadminname="apirw"
+pdapiadminpass="apirw"
 
 pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # this fake receipt internally, and to communicate back to the jss about different patchoo deploy states.
 
@@ -106,9 +114,9 @@ msgtitlenewsoft="New Software Available"
 msgnewsoftware="The following new software is available"
 msginstalllater="(You can perform the installation later via Self Service)"
 msgnewsoftforced="The following software must be installed now!"
-msgbootstrap="Mac is provisioning. Do not interrupt or power off."
+msgbootstrap="Installing Software. Do not interrupt or power off."
 msgbootstapdeployholdingpattern="Awaiting provisioning information. Your admin has been notified."
-msgpatchoodeploywelcome="Welcome to patchoo deploy.
+msgpatchoodeploywelcome="Welcome to CloudMac Deployment.
 We are gathering provisioning information"
 msgshortfwwarn="
 IMPORTANT: A firmware update will be installed.
@@ -133,7 +141,7 @@ IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC 
 iconsize="72"
 dialogtimeout="210"
 
-lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns" # used for fauxLogout (ARD LockScreen will display this) and bootstrap
+lockscreenlogo="/usr/local/cloudmac/imgs/CloudMac.icns" # used for fauxLogout (ARD LockScreen will display this) and bootstrap
 
 # log to the jamf log.
 logto="/var/log/"
@@ -153,18 +161,6 @@ udid=$( ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { split($0,
 OLDIFS="$IFS"
 IFS=$'\n'
 
-if [ ! -d "$cdialog" ]
-then
-	echo "WARNING: CocoaDialog is missing. Triggering JSS install policy."
-	jamf policy -trigger $installcdttrigger
-fi
-
-if [ ! -d "$tnotify" ]
-then
-	echo "WARNING: Terminal Notify is missing. Triggering JSS install policy."
-	jamf policy -trigger $installtnotifytrigger
-fi
-
 # command line paramaters
 mode="$4"
 prereqreceipt="$5"
@@ -180,8 +176,8 @@ else
 fi
 
 cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
-tnotifybin="${tnotify}/Contents/MacOS/terminal-notify"
-bootstrapagent="/Library/LaunchAgents/com.github.patchoo-bootstrap.plist"
+tnotifybin="${tnotify}/Contents/MacOS/terminal-notifier"
+bootstrapagent="/Library/LaunchAgents/com.cloudmac.patchoo-bootstrap.plist"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
 # set and read preferences
@@ -284,7 +280,7 @@ secho()
 		then
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			"$tnotifybin" -title "$title" -message "$message" &
+			"$tnotifybin" -title "$title" -message "$message"
 			# "$cdialogbin" bubble --title "$title" --text "$message" --icon "$icon" --timeout "$timeout" &
 		fi
 	else
@@ -438,7 +434,7 @@ cachePkg()
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
-				jamf policy -id "$prereqpolicyid"
+				$jb policy -id "$prereqpolicyid"
 			fi
 		fi
 	else
@@ -646,7 +642,7 @@ installCasperPkg()
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<fut>true</fut>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<feu>true</feu>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
 	secho "jamf is installing $casppkg"
-	jamf install "$jamfinstallopts" -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
+	$jb install "$jamfinstallopts" -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
 	# (insert error checking)
 	# remove from the waiting room
 
@@ -1201,12 +1197,12 @@ jamfPolicyUpdate()
 		if [ "$groupid" != "0" ]
 		then
 			secho "jamf is firing ${updatetrigger[$groupid]} trigger ..." 
-			jamf policy -trigger "${updatetrigger[$groupid]}"
+			$jb policy -event "${updatetrigger[$groupid]}"
 		fi
 	fi
 	# once we've got run our group trigger, run the standard...
 	secho "jamf is firing ${updatetrigger[0]} trigger ..."
-	jamf policy -trigger "${updatetrigger[0]}"
+	$jb policy -event "${updatetrigger[0]}"
 
 }
 
@@ -1434,6 +1430,7 @@ promptAndSetComputerName()
 promptProvisionInfo()
 {
 	patchoobuildeatmp="$patchootmp/patchoobuildeatmp.xml"
+	sitetmp="$patchootmp/sitetmp.xml"
 	depttmp="$patchootmp/depttmp.xml"
 	buildingtmp="$patchootmp/buildingtmp.xml"
 	choicetmp="$patchootmp/choicetmp.tmp"
@@ -1444,7 +1441,7 @@ promptProvisionInfo()
 	then
 		secho "prompting user to change provision info..."
 		provisiondetails=$(cat "$pdprovisiontmp")
-		changeprovisioninfoprompt=$( $cdialogbin textbox --title "Mac Provisioning Information" --informative-text "This Mac has the following provisioning information:" --text $provisiondetails --string-output --float --timeout 600 --button2 "Change" --button1 "Continue" )
+		changeprovisioninfoprompt=$( $cdialogbin textbox --title "Mac Provisioning Information" --informative-text "This Mac has the following provisioning information:" --text "$provisiondetails" --string-output --float --timeout 600 --button1 "Change" --button2 "Continue" )
 
 		if [ "$changeprovisioninfoprompt" == "Continue" ]
 		then
@@ -1453,7 +1450,7 @@ promptProvisionInfo()
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button2 "Set Info" --button1 "Skip" )
+		skipprompt=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button1 "Set Info" --button2 "Skip" )
 		if [ "$skipprompt" == "Skip" ]
 		then
 			deployready=true
@@ -1464,7 +1461,7 @@ promptProvisionInfo()
 	if $pdusebuildea
 	then
 		#read patchoobuilds	
-		patchoobuildchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		patchoobuildchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g') | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed 's/..$//' )
 		OIFS=$IFS
 		IFS=$','
@@ -1652,7 +1649,7 @@ deploySetup()
 	touch "$pddeployreceipt"
 	deployready=false
 
-	$cdialogbin msgbox --width 400 --height 140 --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 5 --button1 "Ok"
+	$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 15 --button1 "Ok"
 
 	until $deployready
 	do
@@ -1672,7 +1669,7 @@ deploySetup()
 	
 	if [ "$(checkConsoleStatus)" == "userloggedin" ] # if a user is logged in, prompt and restart... otherwise we'll sort that via a launchd or other method
 	then
-		$cdialogbin msgbox --width 400 --height 140 --title "Provisioning" --informative-text "Ready to provison. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
+		$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provison. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
 		#logoutUser
 		#sleep 10 # not pretty
 		reboot &
@@ -1703,13 +1700,13 @@ deployHandler()
 	sleep 3
 	# run recurring trigger before we start deploy, in case we have stuff we need to do on that - once per computer etc.
 	secho "firing recurring checkin trigger ..."
-	jamf policy
+	$jb policy
 	secho "firing deploy trigger ..."
-	jamf policy -trigger "deploy"
+	$jb policy -event "deploy"
 	if $pdusebuildea
 	then
 		secho "firing deploy-${patchoobuild} trigger ..."
-		jamf policy -trigger "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
+		$jb policy -event "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null)  # are installations cached by patchoo polcies, during our deploy?
 	if [ "$installsavail" == "Yes" ]
@@ -1738,11 +1735,11 @@ deployGroup()
 			if [ "$policyid" != "" ]
 			then
 				secho "jamf calling policy id $policyid"
-				jamf policy -id "$policyid"
+				$jb policy -id "$policyid"
 			else
 				# if there's no id, lets call a trigger
 				secho "jamf firing trigger $triggerorpolicy"
-				jamf policy -trigger "$(echo "$triggerorpolicy" | sed -e 's/ /\_/g')"
+				$jb policy -event "$(echo "$triggerorpolicy" | sed -e 's/ /\_/g')"
 			fi
 		fi
 	done
@@ -1812,15 +1809,15 @@ bootstrapHelper()
 	caffeinatepid=$!
 
 	secho "waiting for jss.."
-	until jamf checkJSSConnection
-	do
+#	until jamf checkJSSConnection
+#	do
 		sleep 2
-	done
+#	done
 
 	killall jamfHelper
 
 	# trigger the bootstrap policy
-	jamf policy -trigger bootstrap &
+	$jb policy -event "bootstrap" &
 
 	# these messages will be ignored in the jamf.log, the previous entry will be displayed at the lockscreen
 	ignoremessages=("The management framework will be enforced" "Checking for policies triggered by")
@@ -1847,7 +1844,6 @@ bootstrapHelper()
 		then
 			message="$newmessage"
 			displaymsg="$msgbootstrap
-
 $message"
 			killall jamfHelper
 			"$jamfhelper" -windowType fs -description "$displaymsg" -icon "$lockscreenlogo" &
@@ -1864,9 +1860,9 @@ jamfRecon()
 	secho "jamf is running a recon ..."
 	if [ "$1" == "--feedback" ]
 	then
-		( jamf recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
+		( $jb recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114" 
 	else
-		jamf recon
+		$jb recon
 	fi		
 	# if there is flag, remove it
 	[ -f "$datafolder/.patchoo-recon-required" ] && rm "$datafolder/.patchoo-recon-required"
@@ -1959,7 +1955,7 @@ case $mode in
 	;;
 
 	*)
-		secho "malfunction. :/ - i don't know how to $mode"
+		secho "malfunction. I dont know how to $mode"
 	;;
 
 esac
