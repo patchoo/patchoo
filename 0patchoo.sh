@@ -85,8 +85,8 @@ asureleasecatalog[2]="beta"
 # patchooDeploy settings
 #
 pdusebuildea="false" # isn't setting the ea on the computer record
-pdusedepts="false"
-pdusebuildings="false"
+pdusedepts="true"
+pdusebuildings="true"
 
 pdsetcomputername=true # prompt to set computername
 
@@ -1352,20 +1352,12 @@ checkAndReadProvisionInfo()
 		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
 		# error checking
 		secho "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
-		[ -z "$patchoobuild" ] && pdprovisioninfo=false
-	fi
-
-	if [[ $pdusesites = "true" ]];
-	then
-		sites=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/sites/text()" 2> /dev/null)
-		# error checking
-		secho "site:  $sites" >> "$pdprovisiontmp"
-		[ "$sites" == "" ] && pdprovisioninfo=false
+		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
 	fi
 
 	if [[ $pdusedepts = "true" ]];
 	then
-		department=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
+		department=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/computers/udid/$udid/subset/location | xpath "//computer/location/department/text()" 2> /dev/null )
 		# error checking
 		secho "department:  $department" >> "$pdprovisiontmp"
 		[ "$department" == "" ] && pdprovisioninfo=false
@@ -1373,7 +1365,7 @@ checkAndReadProvisionInfo()
 
 	if [[ $pdusebuildings = "true" ]];
 	then
-		building=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
+		building=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/computers/udid/$udid/subset/location | xpath "//computer/location/building/text()" 2> /dev/null)
 		# error checkingx
 		secho "building:  $building" >> "$pdprovisiontmp"
 		[ "$building" == "" ] && pdprovisioninfo=false
@@ -1531,11 +1523,15 @@ promptProvisionInfo()
 
 	# write out xml for put to api
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
+<computer>
+<extension_attributes>
 <extension_attribute>
 <name>$pdbuildea</name>
 <type>String</type>
 <value>$patchoobuildvalue</value>
 </extension_attribute>
+</extension_attributes>
+</computer>
 " > "$patchoobuildeatmp"
 	
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
