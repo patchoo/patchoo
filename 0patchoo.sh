@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.9959"
+version="0.9960"
 
 # read only api user please!
 apiuser="apirw"
@@ -1379,7 +1379,6 @@ checkAndReadProvisionInfo()
 	fi
 }
 
-
 promptAndSetComputerName()
 {
 	# this computer must existing in the JSS... as we've been enrolled!
@@ -1656,21 +1655,38 @@ deployHandler()
 
 	secho "provision information complete, starting deployment ..."
 	sleep 3
+	
 	# run recurring trigger before we start deploy, in case we have stuff we need to do on that - once per computer etc.
 	secho "firing recurring checkin trigger ..."
 	$jb policy
 	secho "firing deploy trigger ..."
 	$jb policy -event "deploy"
+	
 	if $pdusebuildea
 	then
 		secho "firing deploy-${patchoobuild} trigger ..."
 		$jb policy -event "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
+	
+	if department
+	then
+		secho "firing deploy-${department} trigger ..."
+		$jb policy -event "deploy-${department}"	# calling our build specific trigger eg. deploy-management, deploy-studio
+	fi
+	
+	if building
+	then
+		secho "firing deploy-${building} trigger ..."
+		$jb policy -event "deploy-${building}"		# calling our build specific trigger eg. deploy-management, deploy-studio
+	fi
+	
 	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null)  # are installations cached by patchoo polcies, during our deploy?
+	
 	if [ "$installsavail" == "Yes" ]
 	then
 		installSoftware
 	fi
+	
 	# deploy finished, rebooting to start update
 	secho "deployment process has finished, restarting to start update process ..."
 	rm "$pddeployreceipt"
