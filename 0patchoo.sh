@@ -113,9 +113,9 @@ msgtitlenewsoft="New Software Available"
 msgnewsoftware="The following new software is available"
 msginstalllater="(You can perform the installation later via Self Service)"
 msgnewsoftforced="The following software must be installed now!"
-msgbootstrap="Installing Software. Do not interrupt or power off."
+msgbootstrap="Mac is provisioning. Do not interrupt or power off."
 msgbootstapdeployholdingpattern="Awaiting provisioning information. Your admin has been notified."
-msgpatchoodeploywelcome="Welcome to CloudMac Deployment.
+msgpatchoodeploywelcome="Welcome to patchoo deploy.
 We are gathering provisioning information"
 msgshortfwwarn="
 IMPORTANT: A firmware update will be installed.
@@ -126,21 +126,17 @@ Ensure you connect AC power before starting the update process.
 It could take up to 90 minutes to complete."
 msgfirmwarewarning="
 Firmware updates will be installed after your computer restarts.
-
 Please ensure you are connected to AC Power! Do NOT touch any keys or the power button! A long tone will sound and your screen may be blank for up to 5 minutes.
-
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 msgosupgradewarning="
 Your computer is peforming a major OS X upgrade.
-
-Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete. 
-
+Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete.
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 
 iconsize="72"
 dialogtimeout="210"
 
-lockscreenlogo="/usr/local/cloudmac/imgs/CloudMac.icns" # used for fauxLogout (ARD LockScreen will display this) and bootstrap
+lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns"
 
 # log to the jamf log.
 logto="/var/log/"
