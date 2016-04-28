@@ -22,11 +22,11 @@ version="0.9959"
 apiuser="apirw"
 apipass="apirw"
 
-datafolder="/usr/local/cloudmac/misc"
+datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
-cdialog="/usr/local/cloudmac/bin/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
-tnotify="/usr/local/cloudmac/bin/terminal-notifier.app" #please specify the appbundle rather than the actual binary
+cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
+tnotify="/Applications/Utilities/terminal-notifier.app" #please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 # Where's the jamf binary stored? This is for SIP compatibility.
@@ -84,12 +84,12 @@ asureleasecatalog[2]="beta"
 #
 # patchooDeploy settings
 #
-pdusebuildea=false
-pdusesites=true
-pdusedepts=true
-pdusebuildings=true
+pdusebuildea="true"
+pdusesites="false"
+pdusedepts="true"
+pdusebuildings="true"
 
-pdsetcomputername=false # prompt to set computername
+pdsetcomputername=true # prompt to set computername
 
 # the name of your ext attribute to use as the patchooDeploy build identfier - a populated dropdown EA.
 pdbuildea="patchoo Build"
@@ -1131,7 +1131,6 @@ fauxLogout()
 
 )
 
-
 processLogout()
 {
 	if [ "$installsavail" == "Yes" ]
@@ -1349,39 +1348,39 @@ checkAndReadProvisionInfo()
 	
 	# read the values as required, if missing, return false
 	pdprovisioninfo=true	
-	if $pdusebuildea
+	if [[ $pdusebuildea = "true" ]];
 	then
-		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
+		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
 		# error checking
-		echo "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
-		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
+		secho "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
+		[ -z "$patchoobuild" ] && pdprovisioninfo=false
 	fi
 
-	if $pdusesites
+	if [[ $pdusesites = "true" ]];
 	then
-		sites=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/sites/text()" 2> /dev/null)
+		sites=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/sites/text()" 2> /dev/null)
 		# error checking
-		echo "site:  $sites" >> "$pdprovisiontmp"
+		secho "site:  $sites" >> "$pdprovisiontmp"
 		[ "$sites" == "" ] && pdprovisioninfo=false
 	fi
 
-	if $pdusedepts
+	if [[ $pdusedepts = "true" ]];
 	then
-		department=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
+		department=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/department/text()" 2> /dev/null)
 		# error checking
-		echo "department:  $department" >> "$pdprovisiontmp"
+		secho "department:  $department" >> "$pdprovisiontmp"
 		[ "$department" == "" ] && pdprovisioninfo=false
 	fi
 
-	if $pdusebuildings
+	if [[ $pdusebuildings = "true" ]];
 	then
-		building=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
+		building=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/location" | xpath "//computer/location/building/text()" 2> /dev/null)
 		# error checkingx
-		echo "building:  $building" >> "$pdprovisiontmp"
+		secho "building:  $building" >> "$pdprovisiontmp"
 		[ "$building" == "" ] && pdprovisioninfo=false
 	fi
 
-	if $pdprovisioninfo
+	if [[ $pdprovisioninfo = "true" ]];
 	then
 		return 0
 	else
@@ -1443,26 +1442,30 @@ promptProvisionInfo()
 		provisiondetails=$(cat "$pdprovisiontmp")
 		changeprovisioninfoprompt=$( $cdialogbin textbox --title "Mac Provisioning Information" --informative-text "This Mac has the following provisioning information:" --text "$provisiondetails" --string-output --float --timeout 600 --button1 "Change" --button2 "Continue" )
 
-		if [ "$changeprovisioninfoprompt" == "Continue" ]
+		if [[ "$changeprovisioninfoprompt" == "Continue" ]];
 		then
 			deployready=true
 			return 0
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button1 "Set Info" --button2 "Skip" )
-		if [ "$skipprompt" == "Skip" ]
+		skipprompt=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button1 "Configure" --button2 "Skip" )
+		if [[ "$skipprompt" == "Skip" ]];
 		then
 			deployready=true
 			return 0
 		fi
 	fi
 
-	if $pdusebuildea
+	if [[ $pdusebuildea = "true" ]];
 	then
-		#read patchoobuilds	
-		patchoobuildchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g') | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		#read patchoobuilds
+		ea=$( echo "$pdbuildea" | sed -e 's/ /\+/g' )
+		patchoobuildchoicearray=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/computerextensionattributes/name/$ea )
+		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null )
+		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g' | tr '\n' ',' )
 		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed 's/..$//' )
+		
 		OIFS=$IFS
 		IFS=$','
 		# error checking
@@ -1472,19 +1475,19 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		patchoobuildvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "EA" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		patchoobuildvalue=$( "$cdialogbin" dropdown --width 500 --height 140 --title "Deployment EA" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		patchoobuildvalue=$( echo $patchoobuildvalue | sed -n 2p )
 		IFS=$OIFS
 		
 		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		secho "EA value: $patchoobuildvalue"
 		rm "$choicetmp"
 	fi
 
-	if $pdusesites
+	if [[ $pdusesites = "true" ]];
 	then
 		#read building choices	
-		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		siteschoicearray=$( echo $siteschoicearray | sed 's/..$//' )
 		OIFS=$IFS
 		IFS=$','
@@ -1495,20 +1498,21 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the building name.
-		sitesvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Site" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		sitesvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Site" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		sitesvalue=$( echo $sitesvalue | sed -n 2p )
 		IFS=$OIFS
 		
 		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		secho "Site value: $(echo "$sitesvalue")"
 		rm "$choicetmp"
 	fi
 
-	if $pdusedepts
+	if [[ $pdusedepts = "true" ]];
 	then
 		#read dept choices	
-		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		deptchoicearray=$( echo $deptchoicearray | sed 's/..$//' )
+		secho "$deptchoicearray"
 		OIFS=$IFS
 		IFS=$','
 		# error checking
@@ -1518,19 +1522,19 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		deptvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Department" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		deptvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Department" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		deptvalue=$( echo $deptvalue | sed -n 2p )
 		IFS=$OIFS
 		
 		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		secho "Department value: $(echo "$deptvalue")"
 		rm "$choicetmp"
 	fi
 
-	if $pdusebuildings
+	if [[ $pdusebuildings = "true" ]];
 	then
 		#read building choices	
-		buildingchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		buildingchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		buildingchoicearray=$( echo $buildingchoicearray | sed 's/..$//' )
 		OIFS=$IFS
 		IFS=$','
@@ -1541,12 +1545,12 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the building name.
-		buildingvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Building" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
+		buildingvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Building" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		buildingvalue=$( echo $buildingvalue | sed -n 2p )
 		IFS=$OIFS
 		
 		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
+		secho "Building value: $(echo "$buildingvalue" )"
 		rm "$choicetmp"
 	fi
 
