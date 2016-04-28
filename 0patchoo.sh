@@ -84,10 +84,9 @@ asureleasecatalog[2]="beta"
 #
 # patchooDeploy settings
 #
-pdusebuildea="true"
-pdusesites="false"
-pdusedepts="true"
-pdusebuildings="true"
+pdusebuildea="false" # isn't setting the ea on the computer record
+pdusedepts="false"
+pdusebuildings="false"
 
 pdsetcomputername=true # prompt to set computername
 
@@ -1429,7 +1428,6 @@ promptAndSetComputerName()
 promptProvisionInfo()
 {
 	patchoobuildeatmp="$patchootmp/patchoobuildeatmp.xml"
-	sitetmp="$patchootmp/sitetmp.xml"
 	depttmp="$patchootmp/depttmp.xml"
 	buildingtmp="$patchootmp/buildingtmp.xml"
 	choicetmp="$patchootmp/choicetmp.tmp"
@@ -1444,7 +1442,7 @@ promptProvisionInfo()
 
 		if [[ "$changeprovisioninfoprompt" == "Continue" ]];
 		then
-			deployready=true
+			deployready="true"
 			return 0
 		fi
 	else
@@ -1452,7 +1450,7 @@ promptProvisionInfo()
 		skipprompt=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button1 "Configure" --button2 "Skip" )
 		if [[ "$skipprompt" == "Skip" ]];
 		then
-			deployready=true
+			deployready="true"
 			return 0
 		fi
 	fi
@@ -1481,29 +1479,6 @@ promptProvisionInfo()
 		
 		# error checking
 		secho "EA value: $patchoobuildvalue"
-		rm "$choicetmp"
-	fi
-
-	if [[ $pdusesites = "true" ]];
-	then
-		#read building choices	
-		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
-		siteschoicearray=$( echo $siteschoicearray | sed 's/..$//' )
-		OIFS=$IFS
-		IFS=$','
-		# error checking
-		for line in "${siteschoicearray[@]}"
-		do
-			echo "$line" >> "$choicetmp"
-		done
-		
-		# pop up choices dialog box. strip button report as we only want the building name.
-		sitesvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Site" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
-		sitesvalue=$( echo $sitesvalue | sed -n 2p )
-		IFS=$OIFS
-		
-		# error checking
-		secho "Site value: $(echo "$sitesvalue")"
 		rm "$choicetmp"
 	fi
 
@@ -1556,23 +1531,12 @@ promptProvisionInfo()
 
 	# write out xml for put to api
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
-<computer>
-<extension_attributes>
-<attribute>
+<extension_attribute>
 <name>$pdbuildea</name>
+<type>String</type>
 <value>$patchoobuildvalue</value>
-</attribute>
-</extension_attributes>
-</computer>
+</extension_attribute>
 " > "$patchoobuildeatmp"
-
-	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
-<computer>
-<location>
-<site>$sitevalue</site>
-</location>
-</computer>
-" > "$sitetmp"
 	
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
 <computer>
@@ -1613,12 +1577,6 @@ promptProvisionInfo()
 		if $pdusebuildea
 		then
 			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
-			[ "$putresult" != "" ] && retryauth=true
-		fi
-
-		if $pdusesites
-		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" -T "$sitetmp" -X PUT | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
