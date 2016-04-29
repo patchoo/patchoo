@@ -1307,7 +1307,7 @@ updateHandler()
 		then
 			secho "restarting now!"
 			rm /tmp/.patchoo-restart
-			reboot &
+			reboot
 			return
 		fi
 		# we will either reboot and pickup again at loginwindow
@@ -1348,7 +1348,8 @@ checkAndReadProvisionInfo()
 	then
 		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
 		# error checking
-		secho "patchoobuild:  $patchoobuild" >> "$pdprovisiontmp"
+		secho "patchoobuild:  $patchoobuild"
+		echo "Extension Attribute: $patchoobuild" >> $pdprovisiontmp
 		[ "$patchoobuild" == "" ] && pdprovisioninfo=false
 	fi
 
@@ -1356,7 +1357,8 @@ checkAndReadProvisionInfo()
 	then
 		department=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/computers/udid/$udid/subset/location | xpath "//computer/location/department/text()" 2> /dev/null )
 		# error checking
-		secho "department:  $department" >> "$pdprovisiontmp"
+		secho "department:  $department"
+		echo "Department: $department" >> $pdprovisiontmp
 		[ "$department" == "" ] && pdprovisioninfo=false
 	fi
 
@@ -1364,7 +1366,8 @@ checkAndReadProvisionInfo()
 	then
 		building=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/computers/udid/$udid/subset/location | xpath "//computer/location/building/text()" 2> /dev/null)
 		# error checkingx
-		secho "building:  $building" >> "$pdprovisiontmp"
+		secho "building:  $building"
+		echo "Building: $building" >> $pdprovisiontmp
 		[ "$building" == "" ] && pdprovisioninfo=false
 	fi
 
@@ -1426,7 +1429,7 @@ promptProvisionInfo()
 	then
 		secho "prompting user to change provision info..."
 		provisiondetails=$(cat "$pdprovisiontmp")
-		changeprovisioninfoprompt=$( $cdialogbin textbox --title "Mac Provisioning Information" --informative-text "This Mac has the following provisioning information:" --text "$provisiondetails" --string-output --float --timeout 600 --button1 "Change" --button2 "Continue" )
+		changeprovisioninfoprompt=$( $cdialogbin msgbox --title "Mac Provisioning Information" --icon-file "$lockscreenlogo" --text "This Mac has the following provisioning information:" --informative-text "$provisiondetails" --button1 "Continue" --button2 "Change" --string-output )
 
 		if [[ "$changeprovisioninfoprompt" == "Continue" ]];
 		then
@@ -1475,7 +1478,7 @@ promptProvisionInfo()
 		#read dept choices	
 		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		deptchoicearray=$( echo $deptchoicearray | sed 's/..$//' )
-		secho "$deptchoicearray"
+
 		OIFS=$IFS
 		IFS=$','
 		# error checking
@@ -1603,7 +1606,7 @@ deploySetup()
 	touch "$pddeployreceipt"
 	deployready=false
 
-	$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 15 --button1 "Ok"
+	$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 10 --button1 "Ok"
 
 	until $deployready
 	do
@@ -1623,10 +1626,10 @@ deploySetup()
 	
 	if [ "$(checkConsoleStatus)" == "userloggedin" ] # if a user is logged in, prompt and restart... otherwise we'll sort that via a launchd or other method
 	then
-		$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provison. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
+		$cdialogbin msgbox --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provision. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
 		#logoutUser
 		#sleep 10 # not pretty
-		reboot &
+		reboot
 	fi
 }
 
@@ -1689,7 +1692,7 @@ deployHandler()
 	rm "$pddeployreceipt"
 	touch "${pddeployreceipt}.done"
 	sleep 10
-	reboot &
+	reboot
 }
 
 deployGroup()
