@@ -1329,6 +1329,7 @@ updateHandler()
 	rm /Library/Scripts/patchoo.sh
 	killall jamfHelper
 	# all done loginwindow is unlocked
+	reboot &
 }
 
 #
