@@ -136,6 +136,7 @@ IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC 
 iconsize="72"
 dialogtimeout="210"
 
+# This is used for banding purposes. Replace with your own corporate icns file.
 lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns"
 
 # log to the jamf log.
@@ -295,7 +296,7 @@ displayDialog()
 	button3="$7"
 	
 	# show the dialog...
-	"$cdialogbin" msgbox --title "$title" --icon "$icon"  --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
+	"$cdialogbin" msgbox --title "$title" --icon-file "$icon" --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
 }
 
 makeMessage()
@@ -835,7 +836,7 @@ promptInstall()
 			#
 			makeMessage ""
 			makeMessage "$msginstalllater"
-			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Install and Restart..." "Install and Shutdown..." "Later")
+			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "$lockscreenlogo" "Install and Restart..." "Install and Shutdown..." "Later")
 			
 			case $answer in			
 				"Install and Restart..." )
@@ -1237,7 +1238,7 @@ checkUpdatesSS()
 	jamfPolicyUpdate
 	if [ -f "$datafolder/.patchoo-selfservice-check" ] # the flag is still here, no promptforupdates!
 	then
-		displayDialog "There is no new software available at this time." "No New Software Available" "" "info" "Thanks anyway"
+		displayDialog "There is no new software available at this time." "No New Software Available" "" "$lockscreenlogo" "Ok"
 		rm "$datafolder/.patchoo-selfservice-check"
 	fi
 }
@@ -1346,7 +1347,7 @@ checkAndReadProvisionInfo()
 	pdprovisioninfo=true	
 	if [[ $pdusebuildea = "true" ]];
 	then
-		patchoobuild=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "$jssurl/JSSResource/computers/udid/$udid/subset/extension_attributes" | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
+		patchoobuild=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/computers/udid/$udid/subset/extension_attributes | xpath "//*[name='$pdbuildea']/value/text()" 2> /dev/null)
 		# error checking
 		secho "patchoobuild:  $patchoobuild"
 		echo "Extension Attribute: $patchoobuild" >> $pdprovisiontmp
@@ -1389,11 +1390,11 @@ promptAndSetComputerName()
 		validcomputername=false
 		until $validcomputername
 		do 
-			choice=$( $cdialogbin inputbox --width 430 --height 140 --title "Computer Name" --informative-text "Please confirm this Mac's computername" --text $computername --string-output --float --button1 "Confirm and Set" )
+			choice=$( $cdialogbin inputbox --title "Computer Name" --informative-text "Please confirm this Mac's computername" --text $computername --icon-file "$lockscreenicon" --string-output --float --button1 "Confirm and Set" )
 			newcomputername=$( echo $choice | awk '{ print $4 }' )
 			if [ "$newcomputername" == "" ]
 			then
-				$cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "The computer name cannot be blank" --icon hazard --float --timeout 90 --button1 "Oops"
+				$cdialogbin msgbox --title "Alert" --informative-text "The computer name cannot be blank" --icon-file "$lockscreenicon" --float --timeout 90 --button1 "Oops"
 				continue
 			else
 				# lookup jss to ensure computername isn't in use
@@ -1404,7 +1405,7 @@ promptAndSetComputerName()
 					validcomputername=true
 				else
 					# another computer with this name exists in the JSS
-					$cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "A Mac named $newcomputername already exists in the JSS." --icon hazard --float --timeout 90 --button1 "Oops"
+					$cdialogbin msgbox --title "Alert" --icon-file "$lockscreenicon" --informative-text "A Mac named $newcomputername already exists in the JSS." --float --timeout 90 --button1 "Oops"
 
 				fi
 			fi
@@ -1413,6 +1414,7 @@ promptAndSetComputerName()
 		secho "setting computername to $computername"
 		scutil --set ComputerName "$computername"
 		scutil --set LocalHostName "$computername"
+		scutil --set HostName "$computername"
 	fi
 }
 
@@ -1438,7 +1440,7 @@ promptProvisionInfo()
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button1 "Configure" --button2 "Skip" )
+		skipprompt=$( $cdialogbin msgbox --title "Alert" --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --float --timeout 90 --button1 "Configure" --button2 "Skip" )
 		if [[ "$skipprompt" == "Skip" ]];
 		then
 			deployready="true"
@@ -1464,7 +1466,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		patchoobuildvalue=$( "$cdialogbin" dropdown --width 500 --height 140 --title "Deployment EA" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
+		patchoobuildvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --title "Deployment EA" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		patchoobuildvalue=$( echo $patchoobuildvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1488,7 +1490,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		deptvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Department" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
+		deptvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Department" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		deptvalue=$( echo $deptvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1511,7 +1513,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the building name.
-		buildingvalue=$( $cdialogbin dropdown --width 500 --height 140 --title "Building" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
+		buildingvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Building" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		buildingvalue=$( echo $buildingvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1524,11 +1526,10 @@ promptProvisionInfo()
 	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
 <computer>
 <extension_attributes>
-<extension_attribute>
+<attribute>
 <name>$pdbuildea</name>
-<type>String</type>
 <value>$patchoobuildvalue</value>
-</extension_attribute>
+</attribute>
 </extension_attributes>
 </computer>
 " > "$patchoobuildeatmp"
@@ -1553,14 +1554,14 @@ promptProvisionInfo()
 	do
 		if [ "$pdapiadminname" == "" ]
 		then
-			entry=$( $cdialogbin inputbox --width 430 --height 140 --title "Username" --informative-text "Please enter your username:" --text $hardcode --string-output --float --button1 "Ok" )
+			entry=$( $cdialogbin inputbox --title "Username" --icon-file "$lockscreenlogo" --informative-text "Please enter your username:" --text $hardcode --string-output --float --button1 "Ok" )
 			tmpapiadminuser=$( echo $entry | awk '{ print $2 }' )
 		else
 			tmpapiadminuser="$pdapiadminname"
 		fi		
 		if [ "$pdapiadminpass" == "" ]
 		then	
-			entry=$( $cdialogbin inputbox --width 430 --height 140 --title "Password" --informative-text "Please enter your password:" --text $hardcode --string-output --float --button1 "Ok" )
+			entry=$( $cdialogbin inputbox --title "Password" --icon-file "$lockscreenlogo" --informative-text "Please enter your password:" --text $hardcode --string-output --float --button1 "Ok" )
 			tmpapiadminpass=$( echo $entry | awk '{ print $2 }' )	
 		else
 			tmpapiadminpass="$pdapiadminpass"
