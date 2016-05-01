@@ -1440,7 +1440,7 @@ promptProvisionInfo()
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$( $cdialogbin msgbox --title "Alert" --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --float --timeout 90 --button1 "Configure" --button2 "Skip" )
+		skipprompt=$( $cdialogbin msgbox --title "Alert" --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --timeout 90 --button1 "Configure" --button2 "Skip" )
 		if [[ "$skipprompt" == "Skip" ]];
 		then
 			deployready="true"
@@ -1466,7 +1466,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		patchoobuildvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --title "Deployment EA" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
+		patchoobuildvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --title "Deployment EA" --text "Please Choose:" --items $(< $choicetmp) --string-output --button1 "Ok" )
 		patchoobuildvalue=$( echo $patchoobuildvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1490,7 +1490,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		deptvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Department" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
+		deptvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Department" --text "Please Choose:" --items $(< $choicetmp) --string-output --button1 "Ok" )
 		deptvalue=$( echo $deptvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1513,7 +1513,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the building name.
-		buildingvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Building" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
+		buildingvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Building" --text "Please Choose:" --items $(< $choicetmp) --string-output --button1 "Ok" )
 		buildingvalue=$( echo $buildingvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1554,14 +1554,14 @@ promptProvisionInfo()
 	do
 		if [ "$pdapiadminname" == "" ]
 		then
-			entry=$( $cdialogbin inputbox --title "Username" --icon-file "$lockscreenlogo" --informative-text "Please enter your username:" --text $hardcode --string-output --float --button1 "Ok" )
+			entry=$( $cdialogbin inputbox --title "Username" --icon-file "$lockscreenlogo" --informative-text "Please enter your username:" --text $hardcode --string-output --button1 "Ok" )
 			tmpapiadminuser=$( echo $entry | awk '{ print $2 }' )
 		else
 			tmpapiadminuser="$pdapiadminname"
 		fi		
 		if [ "$pdapiadminpass" == "" ]
 		then	
-			entry=$( $cdialogbin inputbox --title "Password" --icon-file "$lockscreenlogo" --informative-text "Please enter your password:" --text $hardcode --string-output --float --button1 "Ok" )
+			entry=$( $cdialogbin inputbox --title "Password" --icon-file "$lockscreenlogo" --informative-text "Please enter your password:" --text $hardcode --string-output --button1 "Ok" )
 			tmpapiadminpass=$( echo $entry | awk '{ print $2 }' )	
 		else
 			tmpapiadminpass="$pdapiadminpass"
