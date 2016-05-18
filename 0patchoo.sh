@@ -1669,13 +1669,13 @@ deployHandler()
 		$jb policy -event "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	
-	if department
+	if $department
 	then
 		secho "firing deploy-${department} trigger ..."
 		$jb policy -event "deploy-${department}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	
-	if building
+	if $building
 	then
 		secho "firing deploy-${building} trigger ..."
 		$jb policy -event "deploy-${building}"		# calling our build specific trigger eg. deploy-management, deploy-studio
