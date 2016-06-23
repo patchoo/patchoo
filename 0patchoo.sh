@@ -1967,7 +1967,6 @@ case $mode in
 	"--deploybootstrap" )
 		# setups up deployment bootstrap, run on enrollment complete.
 		bootstrapSetupDeploy
-		launchctl load -w "$bootstrapagent"
 	;;
 	
 	"--deploysetup" )
