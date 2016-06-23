@@ -173,7 +173,7 @@ fi
 
 cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
 tnotifybin="${tnotify}/Contents/MacOS/terminal-notifier"
-bootstrapagent="/Library/LaunchAgents/com.cloudmac.patchoo-bootstrap.plist"
+bootstrapagent="/Library/LaunchAgents/com.company.patchoo-bootstrap.plist"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
 # set and read preferences
@@ -1624,6 +1624,10 @@ deploySetup()
 		fi
 	done
 
+	# Clean up any existing bootstrap
+	srm /Library/Preferences/$bootstrapagent
+	srm /Library/Scripts/patchoo.sh
+
 	bootstrapSetup # setup bootstrap bits
 
 	secho "patchoo deploy is ready"
@@ -1756,6 +1760,44 @@ bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
         <string>''</string>
         <string>''</string>
         <string>--bootstraphelper</string>
+	</array>
+</dict>
+</plist>'
+
+	echo "$bootstrappagentplist" > "$bootstrapagent"
+	# set permissions for agent
+	chown root:wheel "$bootstrapagent"
+	chmod 644 "$bootstrapagent"
+	# copy the script to local drive
+	cp "$0" /Library/Scripts/patchoo.sh
+	chown root:wheel /Library/Scripts/patchoo.sh
+	chmod 700 /Library/Scripts/patchoo.sh
+	# unset any loginwindow autologin
+	defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser ""
+	secho "bootstrap setup done, you need to restart"
+}
+
+bootstrapSetupDeploy()
+{
+# write out a launchagent to call bootstrap helper
+
+bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.github.patchoo-bootstrap</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>LimitLoadToSessionType</key>
+	<string>LoginWindow</string>
+	<key>ProgramArguments</key>
+	<array>
+        <string>/Library/Scripts/patchoo.sh</string>
+        <string>''</string>
+        <string>''</string>
+        <string>''</string>
+        <string>--deploysetup</string>
 	</array>
 </dict>
 </plist>'
@@ -1923,8 +1965,15 @@ case $mode in
 	;;
 
 	"--deploysetup" )
+		if currentuser = loginwindow
+		then
+		# setups up deployment bootstrap, run on enrollment complete.
+			bootstrapSetupDeploy
+			reboot
+		else
 		# setups up deployment, run on enrollment complete
-		deploySetup
+			deploySetup
+		fi
 	;;
 
 	"--deploygroup" )
