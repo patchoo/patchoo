@@ -1963,17 +1963,16 @@ case $mode in
 		# called by the launch agent, drives the bootstrap process (deploy and updates)
 		bootstrap
 	;;
-
-	"--deploysetup" )
-		if currentuser = loginwindow
-		then
+	
+	"--deploybootstrap" )
 		# setups up deployment bootstrap, run on enrollment complete.
 			bootstrapSetupDeploy
 			reboot
-		else
+	;;
+	
+	"--deploysetup" )
 		# setups up deployment, run on enrollment complete
-			deploySetup
-		fi
+		deploySetup
 	;;
 
 	"--deploygroup" )
