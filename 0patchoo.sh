@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.9957"
+version="0.9958"
 
 # read only api user please!
 apiuser="apiuser"
@@ -27,6 +27,17 @@ pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
 cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
+
+# Where's the jamf binary stored? This is for SIP compatibility.
+jamf_binary=`/usr/bin/which jamf`
+
+ if [[ "$jamf_binary" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ ! -e "/usr/local/bin/jamf" ]]; then
+    jamf_binary="/usr/sbin/jamf"
+ elif [[ "$jamf_binary" == "" ]] && [[ ! -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+    jamf_binary="/usr/local/bin/jamf"
+ elif [[ "$jamf_binary" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+    jamf_binary="/usr/local/bin/jamf"
+ fi
 
 # a custom trigger to install cocoadialog if it's not present
 installcdttrigger="installcd"
@@ -78,7 +89,7 @@ asureleasecatalog[2]="beta"
 pdusebuildea=true
 pdusesites=true
 pdusedepts=true
-pdusebuildings=false
+pdusebuildings=true
 
 pdsetcomputername=true # prompt to set computername
 
@@ -154,8 +165,8 @@ IFS=$'\n'
 
 if [ ! -d "$cdialog" ]
 then
-	echo "WARNING: CocoaDialog is missing. Triggering JSS install policy."
-	jamf policy -trigger $installcdttrigger
+	echo "INFO: CocoaDialog is missing. Triggering JSS install policy."
+	$jamf_binary policy -trigger $installcdttrigger
 fi
 
 # command line paramaters
@@ -438,7 +449,7 @@ cachePkg()
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
-				jamf policy -id "$prereqpolicyid"
+				$jamf_binary policy -id "$prereqpolicyid"
 			fi
 		fi
 	else
@@ -643,7 +654,7 @@ installCasperPkg()
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<fut>true</fut>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<feu>true</feu>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
 	secho "jamf is installing $casppkg"
-	jamf install "$jamfinstallopts" -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
+	$jamf_binary install "$jamfinstallopts" -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
 	# (insert error checking)
 	# remove from the waiting room
 
@@ -1190,12 +1201,12 @@ jamfPolicyUpdate()
 		if [ "$groupid" != "0" ]
 		then
 			secho "jamf is firing ${updatetrigger[$groupid]} trigger ..."
-			jamf policy -trigger "${updatetrigger[$groupid]}"
+			$jamf_binary policy -trigger "${updatetrigger[$groupid]}"
 		fi
 	fi
 	# once we've got run our group trigger, run the standard...
 	secho "jamf is firing ${updatetrigger[0]} trigger ..."
-	jamf policy -trigger "${updatetrigger[0]}"
+	$jamf_binary policy -trigger "${updatetrigger[0]}"
 
 }
 
@@ -1392,12 +1403,12 @@ promptAndSetComputerName()
 		secho "current computername is $computername"
 		validcomputername=false
 		until $validcomputername
-		do
-			choice=$( "$cdialogbin" inputbox --width 430 --height 140 --title "Computer Name" --informative-text "Please confirm this Mac's computername" --text $computername --string-output --float --button1 "Confirm and Set" )
+		do 
+			choice=$( $cdialogbin inputbox --title "Computer Name" --informative-text "Please confirm this Mac's computername" --text $computername --icon-file "$lockscreenicon" --string-output --float --button1 "Confirm and Set" )
 			newcomputername=$( echo $choice | awk '{ print $4 }' )
 			if [ "$newcomputername" == "" ]
 			then
-				"$cdialogbin" msgbox --width 400 --height 140 --title "Alert" --informative-text "The computer name cannot be blank" --icon hazard --float --timeout 90 --button1 "Oops"
+				$cdialogbin msgbox --title "Alert" --informative-text "The computer name cannot be blank" --icon-file "$lockscreenicon" --float --timeout 90 --button1 "Oops"
 				continue
 			else
 				# lookup jss to ensure computername isn't in use
@@ -1408,225 +1419,151 @@ promptAndSetComputerName()
 					validcomputername=true
 				else
 					# another computer with this name exists in the JSS
-					"$cdialogbin" msgbox --width 400 --height 140 --title "Alert" --informative-text "A Mac named $newcomputername already exists in the JSS." --icon hazard --float --timeout 90 --button1 "Oops"
+					$cdialogbin msgbox --title "Alert" --icon-file "$lockscreenicon" --informative-text "A Mac named $newcomputername already exists in the JSS." --float --timeout 90 --button1 "Oops"
 
 				fi
 			fi
 		done
 		# set the computername with scutil
 		secho "setting computername to $computername"
-		scutil --set ComputerName "$computername"
-		scutil --set LocalHostName "$computername"
+		#scutil --set ComputerName "$computername"
+		#scutil --set LocalHostName "$computername"
+		#scutil --set HostName "$computername"
+		$jamf_binary -setComputerName -name "$computername"
 	fi
 }
 
 promptProvisionInfo()
 {
-	patchoobuildeatmp="$patchootmp/patchoobuildeatmp.xml"
-	depttmp="$patchootmp/depttmp.xml"
-	buildingtmp="$patchootmp/buildingtmp.xml"
-	choicetmp="$patchootmp/choicetmp.tmp"
-
 	promptAndSetComputerName
 
 	if checkAndReadProvisionInfo
 	then
 		secho "prompting user to change provision info..."
 		provisiondetails=$(cat "$pdprovisiontmp")
-		changeprovisioninfoprompt=$( "$cdialogbin" textbox --title "Mac Provisioning Information" --informative-text "This Mac has the following provisioning information:" --text "$provisiondetails" --string-output --float --timeout 600 --button2 "Change" --button1 "Continue" )
+		changeprovisioninfoprompt=$( $cdialogbin msgbox --title "Mac Provisioning Information" --float --icon-file "$lockscreenlogo" --text "This Mac has the following provisioning information:" --informative-text "$provisiondetails" --button1 "Continue" --button2 "Change" --string-output )
 
-		if [ "$changeprovisioninfoprompt" == "Continue" ]
+		if [[ "$changeprovisioninfoprompt" == "Continue" ]];
 		then
-			deployready=true
+			deployready="true"
 			return 0
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$( "$cdialogbin" msgbox --width 400 --height 140 --title "Alert" --informative-text "This Mac has incomplete provisioning information" --string-output --icon hazard --float --timeout 90 --button2 "Set Info" --button1 "Skip" )
-		if [ "$skipprompt" == "Skip" ]
+		skipprompt=$( $cdialogbin msgbox --title "Alert" --float --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --timeout 90 --button1 "Configure" --button2 "Skip" )
+		if [[ "$skipprompt" == "Skip" ]];
 		then
-			deployready=true
+			deployready="true"
 			return 0
 		fi
 	fi
-
-	if $pdusebuildea
-	then
-		#read patchoobuilds
-		patchoobuildchoicearray=($(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g'))
-		#patchoobuildchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/computerextensionattributes/name/$(echo "$pdbuildea" | sed -e 's/ /\+/g')" | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
-		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed 's/..$//' )
-		OIFS=$IFS
-		IFS=$','
-		# error checking
-		for line in "${patchoobuildchoicearray[@]}"
-		do
-			echo "$line" >> "$choicetmp"
-		done
-
-		# pop up choices dialog box. strip button report as we only want the department name.
-		patchoobuildvalue=$( "$cdialogbin" dropdown --width 500 --height 140 --title "EA" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
-		patchoobuildvalue=$( echo $patchoobuildvalue | sed -n 2p )
-		IFS=$OIFS
-
-		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
-		rm "$choicetmp"
-	fi
-
+	
 	if $pdusesites
 	then
-		#read building choices
+		#read sites from jss
 		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		siteschoicearray=$( echo $siteschoicearray | sed 's/..$//' )
-		OIFS=$IFS
-		IFS=$','
-		# error checking
-		for line in "${siteschoicearray[@]}"
-		do
-			echo "$line" >> "$choicetmp"
-		done
+		OIFS=$IFS; IFS=','; SITES_ARRAY=( $siteschoicearray ); IFS=$OIFS
 
 		# pop up choices dialog box. strip button report as we only want the building name.
-		sitesvalue=$( "$cdialogbin" dropdown --width 500 --height 140 --title "Site" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
-		sitesvalue=$( echo $sitesvalue | sed -n 2p )
-		IFS=$OIFS
+		sitesvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --float --width 500 --height 140 --title "Site" --text "Please Choose:" --items "${SITES_ARRAY[@]}" --string-output --button1 "Ok" )
+		sitesvalue=$( echo $sitesvalue | cut -d " " -f2- )
 
-		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
-		rm "$choicetmp"
+		secho "Site value: $sitesvalue"
 	fi
 
-	if $pdusedepts
+	if [[ $pdusebuildea = "true" ]];
 	then
-		#read dept choices
-		#deptchoicearray=($(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/departments" | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g'))
-		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		#read patchoobuilds
+		ea=$( echo "$pdbuildea" | sed -e 's/ /\+/g' )
+		patchoobuildchoicearray=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/computerextensionattributes/name/$ea )
+		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | xpath //computer_extension_attribute/*/popup_choices/* 2> /dev/null )
+		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed -e 's/<choice>//g' | sed -e $'s/<\/choice>/\\\n/g' | tr '\n' ',' )
+		patchoobuildchoicearray=$( echo $patchoobuildchoicearray | sed 's/..$//' )
+		OIFS=$IFS; IFS=','; BUILD_ARRAY=( $patchoobuildchoicearray ); IFS=$OIFS
+		
+		# pop up choices dialog box. strip button report as we only want the department name.
+		patchoobuildvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --float --title "Deployment EA" --text "Please Choose:" --items "${BUILD_ARRAY[@]}" --string-output --button1 "Ok" )
+		patchoobuildvalue=$( echo $patchoobuildvalue | cut -d " " -f2- )
+
+		secho "Build value: $patchoobuildvalue"
+	fi
+
+	if [[ $pdusedepts = "true" ]];
+	then
+		#read dept choices	
+		deptchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/departments | xpath //departments/department/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		deptchoicearray=$( echo $deptchoicearray | sed 's/..$//' )
-		OIFS=$IFS
-		IFS=$','
-		# error checking
-		for line in "${deptchoicearray[@]}"
-		do
-			echo "$line" >> "$choicetmp"
-		done
+		OIFS=$IFS; IFS=','; DEPT_ARRAY=( $deptchoicearray ); IFS=$OIFS
 
 		# pop up choices dialog box. strip button report as we only want the department name.
-		deptvalue=$( "$cdialogbin" dropdown --width 500 --height 140 --title "Department" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
-		deptvalue=$( echo $deptvalue | sed -n 2p )
-		IFS=$OIFS
-
-		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
-		rm "$choicetmp"
+		deptvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --float --height 140 --title "Department" --text "Please Choose:" --items "${DEPT_ARRAY[@]}" --string-output --button1 "Ok" )
+		deptvalue=$( echo $deptvalue | cut -d " " -f2- )
+		
+		secho "Department value: $(echo "$deptvalue")"
 	fi
 
-	if $pdusebuildings
+	if [[ $pdusebuildings = "true" ]];
 	then
-		#read building choices
-		buildingchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipw} --request GET ${jssadr}/JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		#read building choices	
+		buildingchoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/buildings | xpath //buildings/building/name 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		buildingchoicearray=$( echo $buildingchoicearray | sed 's/..$//' )
-		OIFS=$IFS
-		IFS=$','
-		# error checking
-		for line in "${buildingchoicearray[@]}"
-		do
-			echo "$line" >> "$choicetmp"
-		done
-
+		OIFS=$IFS; IFS=','; BUILDING_ARRAY=( $buildingchoicearray ); IFS=$OIFS
+		
 		# pop up choices dialog box. strip button report as we only want the building name.
-		buildingvalue=$( "$cdialogbin" dropdown --width 500 --height 140 --title "Building" --text "Please Choose:" --items $(cat $choicetmp) --string-output --float --button1 "Ok" )
-		buildingvalue=$( echo $buildingvalue | sed -n 2p )
-		IFS=$OIFS
-
-		# error checking
-		echo "$(echo "$promptdata" | cut -d, -f2 | cut -d: -f2)"
-		rm "$choicetmp"
+		buildingvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --float --height 140 --title "Building" --text "Please Choose:" --items "${BUILDING_ARRAY[@]}" --string-output --button1 "Ok" )
+		buildingvalue=$( echo $buildingvalue | cut -d " " -f2- )
+		
+		secho "Building value: $(echo "$buildingvalue" )"
 	fi
-
-	# write out xml for put to api
-	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
-<computer>
-<extension_attributes>
-<attribute>
-<name>$pdbuildea</name>
-<value>$patchoobuildvalue</value>
-</attribute>
-</extension_attributes>
-</computer>
-" > "$patchoobuildeatmp"
-
-	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
-<computer>
-<location>
-<site>$sitevalue</site>
-</location>
-</computer>
-" > "$sitetmp"
-
-	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
-<computer>
-<location>
-<department>$deptvalue</department>
-</location>
-</computer>
-" > "$depttmp"
-
-	echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>
-<computer>
-<location>
-<building>$buildingvalue</building>
-</location>
-</computer>
-" > "$buildingtmp"
 
 	while true
 	do
 		if [ "$pdapiadminname" == "" ]
 		then
-			entry=$( "$cdialogbin" inputbox --width 430 --height 140 --title "Username" --informative-text "Please enter your username:" --text $hardcode --string-output --float --button1 "Ok" )
+			entry=$( $cdialogbin inputbox --title "Username" --icon-file "$lockscreenlogo" --float --informative-text "Please enter your username:" --string-output --button1 "Ok" )
 			tmpapiadminuser=$( echo $entry | awk '{ print $2 }' )
 		else
 			tmpapiadminuser="$pdapiadminname"
-		fi
+		fi		
 		if [ "$pdapiadminpass" == "" ]
-		then
-			entry=$( "$cdialogbin" inputbox --width 430 --height 140 --title "Password" --informative-text "Please enter your password:" --text $hardcode --string-output --float --button1 "Ok" )
-			tmpapiadminpass=$( echo $entry | awk '{ print $2 }' )
+		then	
+			entry=$( $cdialogbin inputbox --title "Password" --icon-file "$lockscreenlogo" --float --informative-text "Please enter your password:" ‑‑no‑show --string-output --button1 "Ok" )
+			tmpapiadminpass=$( echo $entry | awk '{ print $2 }' )	
 		else
 			tmpapiadminpass="$pdapiadminpass"
 		fi
-
+		
 		# put the xml to api
 		retryauth=false
 
 		if $pdusebuildea
 		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/extensionattributes" -T "$patchoobuildeatmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts "${jssurl}JSSResource/computers/udid/$udid" --user "$tmpapiadminuser:$tmpapiadminpass" --silent -H "Content-Type: text/xml" -X PUT -d "<computer><extension_attributes><extension_attribute><name>$pdbuildea</name><value>$patchoobuildvalue</value></extension_attribute></extension_attributes></computer>" | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
-
+		
 		if $pdusesites
 		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" -T "$sitetmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts "${jssurl}JSSResource/computers/udid/$udid" --user "$tmpapiadminuser:$tmpapiadminpass" --silent -H "Content-Type: text/xml" -X PUT -d "<computer><general><site><name>$sitesvalue</name></site></general></computer>" | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusedepts
 		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" -T "$depttmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts "${jssurl}JSSResource/computers/udid/$udid" --user "$tmpapiadminuser:$tmpapiadminpass" --silent -H "Content-Type: text/xml" -X PUT -d "<computer><location><department>$deptvalue</department></location></computer>" | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $pdusebuildings
 		then
-			putresult=$(curl $curlopts -H "Accept: application/xml" -s -u "$tmpapiadminuser:$tmpapiadminpass" "${jssurl}JSSResource/computers/udid/$udid/subset/location" -T "$buildingtmp" -X PUT | grep "requires user authentication")
+			putresult=$(curl $curlopts "${jssurl}JSSResource/computers/udid/$udid" --user "$tmpapiadminuser:$tmpapiadminpass" --silent -H "Content-Type: text/xml" -X PUT -d "<computer><location><building>$buildingvalue</building></location></computer>" | grep "requires user authentication")
 			[ "$putresult" != "" ] && retryauth=true
 		fi
 
 		if $retryauth
 		then
-			entry=$( "$cdialogbin" msgbox --width 400 --height 140 --title "Alert" --informative-text "The admin username or password was incorrect" --string-output --icon hazard --float --timeout 90 --button1 "Ok" --button2 "Skip" )
+			entry=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --float --informative-text "The admin username or password was incorrect" --string-output --icon hazard --float --timeout 90 --button1 "Ok" --button2 "Skip" )
 			tryagain=$( echo $entry | awk '{ print $2 }' )
 			[ "$tryagain" == "Ok" ] && continue # loop again
 		fi
@@ -1635,7 +1572,6 @@ promptProvisionInfo()
 		break
 	done
 }
-
 deploySetup()
 {
 	# run on enrollment complete, setups up deploy process
@@ -1643,7 +1579,7 @@ deploySetup()
 	touch "$pddeployreceipt"
 	deployready=false
 
-	"$cdialogbin" msgbox --width 400 --height 140 --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 5 --button1 "Ok"
+	"$cdialogbin" msgbox --width 400 --height 140 --title "Deployment" --float --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 5 --button1 "Ok"
 
 	until $deployready
 	do
@@ -1663,7 +1599,7 @@ deploySetup()
 
 	if [ "$(checkConsoleStatus)" == "userloggedin" ] # if a user is logged in, prompt and restart... otherwise we'll sort that via a launchd or other method
 	then
-		"$cdialogbin" msgbox --width 400 --height 140 --title "Provisioning" --informative-text "Ready to provison. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
+		"$cdialogbin" msgbox --width 400 --height 140 --title "Provisioning" --float --informative-text "Ready to provison. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
 		#logoutUser
 		#sleep 10 # not pretty
 		reboot &
@@ -1694,13 +1630,13 @@ deployHandler()
 	sleep 3
 	# run recurring trigger before we start deploy, in case we have stuff we need to do on that - once per computer etc.
 	secho "firing recurring checkin trigger ..."
-	jamf policy
+	$jamf_binary policy
 	secho "firing deploy trigger ..."
-	jamf policy -trigger "deploy"
+	$jamf_binary policy -trigger "deploy"
 	if $pdusebuildea
 	then
 		secho "firing deploy-${patchoobuild} trigger ..."
-		jamf policy -trigger "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
+		$jamf_binary policy -trigger "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null)  # are installations cached by patchoo polcies, during our deploy?
 	if [ "$installsavail" == "Yes" ]
@@ -1729,11 +1665,11 @@ deployGroup()
 			if [ "$policyid" != "" ]
 			then
 				secho "jamf calling policy id $policyid"
-				jamf policy -id "$policyid"
+				$jamf_binary policy -id "$policyid"
 			else
 				# if there's no id, lets call a trigger
 				secho "jamf firing trigger $triggerorpolicy"
-				jamf policy -trigger "$(echo "$triggerorpolicy" | sed -e 's/ /\_/g')"
+				$jamf_binary policy -trigger "$(echo "$triggerorpolicy" | sed -e 's/ /\_/g')"
 			fi
 		fi
 	done
@@ -1811,7 +1747,7 @@ bootstrapHelper()
 	killall jamfHelper
 
 	# trigger the bootstrap policy
-	jamf policy -trigger bootstrap &
+	$jamf_binary policy -trigger bootstrap &
 
 	# these messages will be ignored in the jamf.log, the previous entry will be displayed at the lockscreen
 	ignoremessages=("The management framework will be enforced" "Checking for policies triggered by")
@@ -1855,9 +1791,9 @@ jamfRecon()
 	secho "jamf is running a recon ..."
 	if [ "$1" == "--feedback" ]
 	then
-		( jamf recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
+		( $jamf_binary recon ) | "$cdialogbin" progressbar --icon sync --float --indeterminate --title "Casper Recon" --text "Updating computer inventory..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 	else
-		jamf recon
+		$jamf_binary recon
 	fi
 	# if there is flag, remove it
 	[ -f "$datafolder/.patchoo-recon-required" ] && rm "$datafolder/.patchoo-recon-required"
