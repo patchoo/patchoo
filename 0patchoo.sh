@@ -1404,11 +1404,11 @@ promptAndSetComputerName()
 		validcomputername=false
 		until $validcomputername
 		do 
-			choice=$( $cdialogbin inputbox --title "Computer Name" --informative-text "Please confirm this Mac's computername" --text $computername --icon-file "$lockscreenicon" --string-output --float --button1 "Confirm and Set" )
+			choice=$( "$cdialogbin" inputbox --title "Computer Name" --informative-text "Please confirm this Mac's computername" --text $computername --icon-file "$lockscreenicon" --string-output --float --button1 "Confirm and Set" )
 			newcomputername=$( echo $choice | awk '{ print $4 }' )
 			if [ "$newcomputername" == "" ]
 			then
-				$cdialogbin msgbox --title "Alert" --informative-text "The computer name cannot be blank" --icon-file "$lockscreenicon" --float --timeout 90 --button1 "Oops"
+				"$cdialogbin" msgbox --title "Alert" --informative-text "The computer name cannot be blank" --icon-file "$lockscreenicon" --float --timeout 90 --button1 "Oops"
 				continue
 			else
 				# lookup jss to ensure computername isn't in use
@@ -1419,7 +1419,7 @@ promptAndSetComputerName()
 					validcomputername=true
 				else
 					# another computer with this name exists in the JSS
-					$cdialogbin msgbox --title "Alert" --icon-file "$lockscreenicon" --informative-text "A Mac named $newcomputername already exists in the JSS." --float --timeout 90 --button1 "Oops"
+					"$cdialogbin" msgbox --title "Alert" --icon-file "$lockscreenicon" --informative-text "A Mac named $newcomputername already exists in the JSS." --float --timeout 90 --button1 "Oops"
 
 				fi
 			fi
@@ -1441,7 +1441,7 @@ promptProvisionInfo()
 	then
 		secho "prompting user to change provision info..."
 		provisiondetails=$(cat "$pdprovisiontmp")
-		changeprovisioninfoprompt=$( $cdialogbin msgbox --title "Mac Provisioning Information" --float --icon-file "$lockscreenlogo" --text "This Mac has the following provisioning information:" --informative-text "$provisiondetails" --button1 "Continue" --button2 "Change" --string-output )
+		changeprovisioninfoprompt=$( "$cdialogbin" msgbox --title "Mac Provisioning Information" --float --icon-file "$lockscreenlogo" --text "This Mac has the following provisioning information:" --informative-text "$provisiondetails" --button1 "Continue" --button2 "Change" --string-output )
 
 		if [[ "$changeprovisioninfoprompt" == "Continue" ]];
 		then
@@ -1450,7 +1450,7 @@ promptProvisionInfo()
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$( $cdialogbin msgbox --title "Alert" --float --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --timeout 90 --button1 "Configure" --button2 "Skip" )
+		skipprompt=$( "$cdialogbin" msgbox --title "Alert" --float --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --timeout 90 --button1 "Configure" --button2 "Skip" )
 		if [[ "$skipprompt" == "Skip" ]];
 		then
 			deployready="true"
@@ -1458,10 +1458,10 @@ promptProvisionInfo()
 		fi
 	fi
 	
-	if $pdusesites
+	if [[ $pdusesites = "true" ]];
 	then
 		#read sites from jss
-		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssadr}/JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
+		siteschoicearray=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} --request GET ${jssurl}JSSResource/sites | xpath //sites 2> /dev/null | sed -e 's/<name>//g' | sed -e $'s/<\/name>/\\\n/g' | tr '\n' ',')
 		siteschoicearray=$( echo $siteschoicearray | sed 's/..$//' )
 		OIFS=$IFS; IFS=','; SITES_ARRAY=( $siteschoicearray ); IFS=$OIFS
 
@@ -1497,7 +1497,7 @@ promptProvisionInfo()
 		OIFS=$IFS; IFS=','; DEPT_ARRAY=( $deptchoicearray ); IFS=$OIFS
 
 		# pop up choices dialog box. strip button report as we only want the department name.
-		deptvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --float --height 140 --title "Department" --text "Please Choose:" --items "${DEPT_ARRAY[@]}" --string-output --button1 "Ok" )
+		deptvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --float --height 140 --title "Department" --text "Please Choose:" --items "${DEPT_ARRAY[@]}" --string-output --button1 "Ok" )
 		deptvalue=$( echo $deptvalue | cut -d " " -f2- )
 		
 		secho "Department value: $(echo "$deptvalue")"
@@ -1511,7 +1511,7 @@ promptProvisionInfo()
 		OIFS=$IFS; IFS=','; BUILDING_ARRAY=( $buildingchoicearray ); IFS=$OIFS
 		
 		# pop up choices dialog box. strip button report as we only want the building name.
-		buildingvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --float --height 140 --title "Building" --text "Please Choose:" --items "${BUILDING_ARRAY[@]}" --string-output --button1 "Ok" )
+		buildingvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --float --height 140 --title "Building" --text "Please Choose:" --items "${BUILDING_ARRAY[@]}" --string-output --button1 "Ok" )
 		buildingvalue=$( echo $buildingvalue | cut -d " " -f2- )
 		
 		secho "Building value: $(echo "$buildingvalue" )"
@@ -1521,14 +1521,14 @@ promptProvisionInfo()
 	do
 		if [ "$pdapiadminname" == "" ]
 		then
-			entry=$( $cdialogbin inputbox --title "Username" --icon-file "$lockscreenlogo" --float --informative-text "Please enter your username:" --string-output --button1 "Ok" )
+			entry=$( "$cdialogbin" inputbox --title "Username" --icon-file "$lockscreenlogo" --float --informative-text "Please enter your username:" --string-output --button1 "Ok" )
 			tmpapiadminuser=$( echo $entry | awk '{ print $2 }' )
 		else
 			tmpapiadminuser="$pdapiadminname"
 		fi		
 		if [ "$pdapiadminpass" == "" ]
 		then	
-			entry=$( $cdialogbin inputbox --title "Password" --icon-file "$lockscreenlogo" --float --informative-text "Please enter your password:" ‑‑no‑show --string-output --button1 "Ok" )
+			entry=$( "$cdialogbin" inputbox --title "Password" --icon-file "$lockscreenlogo" --float --informative-text "Please enter your password:" ‑‑no‑show --string-output --button1 "Ok" )
 			tmpapiadminpass=$( echo $entry | awk '{ print $2 }' )	
 		else
 			tmpapiadminpass="$pdapiadminpass"
@@ -1563,7 +1563,7 @@ promptProvisionInfo()
 
 		if $retryauth
 		then
-			entry=$( $cdialogbin msgbox --width 400 --height 140 --title "Alert" --float --informative-text "The admin username or password was incorrect" --string-output --icon hazard --float --timeout 90 --button1 "Ok" --button2 "Skip" )
+			entry=$( "$cdialogbin" msgbox --width 400 --height 140 --title "Alert" --float --informative-text "The admin username or password was incorrect" --string-output --icon hazard --float --timeout 90 --button1 "Ok" --button2 "Skip" )
 			tryagain=$( echo $entry | awk '{ print $2 }' )
 			[ "$tryagain" == "Ok" ] && continue # loop again
 		fi
