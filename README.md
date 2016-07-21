@@ -4,16 +4,7 @@ Patchoo!
 
 [https://github.com/patchoo/patchoo](https://github.com/patchoo/patchoo)
 
-This is my custom variant of Patchoo. In this is very experimental and probably buggy support for JSS sites, as well as changing all the applescript dialog to cocoadialog boxes. This assumes you are using Loceee's fork of CocoaDialog which now works on loginwindow and logout. (Faux Logout has been left in place).
-
-Also the API stuff has been recoded to use a Mac's UUID (or JAMF insist it's a UDID for some reason) instead of the Ethernet MAC address. This is purely for compatibility with removable ethernet connections.
-
-**THIS SHOULD BE CONSIDERED BUGGY AND ALPHA CLASS CODE**
-
-Richard (franton).
-
 **(ex-junki)**
-
 
 Patchoo somewhat emulates [munki](https://code.google.com/p/munki/) workflows and user experience for JAMF Software's [Casper Suite](http://www.jamfsoftware.com/products/casper-suite/).  
 
