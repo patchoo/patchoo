@@ -276,7 +276,11 @@ secho()
 		then
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			"$tnotifybin" -title "$title" -message "$message"
+			# Added extra code to improve terminal notifier reliability by running as current user. Thanks mm2270!
+			# https://jamfnation.jamfsoftware.com/discussion.html?id=9902#responseChild108320
+			loggedInUser=$(stat -f%Su /dev/console)
+			userUID=$(id -u ${loggedInUser})
+			/bin/launchctl asuser "$userUID" sudo -iu "$loggedInUser" "$tnotifybin" -title "$title" -message "$message"
 			# "$cdialogbin" bubble --title "$title" --text "$message" --icon "$icon" --timeout "$timeout" &
 		fi
 	else
