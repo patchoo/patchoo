@@ -93,6 +93,28 @@ patchooCheckASU calls `0patchoo.sh --checkasu` which does the following:
 * Target Computers `patchooAllClients`
 
 ___
+### [002-patchooReboot](id:patchooReboot)
+
+patchooReboot is used to action computer reboots, which does the following:
+
+* It uses a JAMF policy to perform an immediate FV2 authenticated reboot.
+
+#### General tab
+
+* Name: `002-patchooReboot`
+* Enabled: `true`
+* Category: `0-patchoo-z-core`
+* Trigger: `restart`
+* Execution: `ongoing`
+
+![reboot general](images/policy_reboot.png)
+![reboot restart](images/policy_reboot_setting.png)
+
+#### Scope tab
+
+* Target Computers `patchooAllClients`
+
+___
 ### [zzz-patchooPromptToInstall](id:patchooPromptToInstall)
 
 This policy is called at the end of an update chain. If [software deployment policies](deploying_standalone_Installers.md) have cached any installations, or [patchooCheckASU](#patchooCheckASU) has downloaded Apple Software Updates (or any are waiting there any any cached from previous sessions) this policy will prompt the user to start the installation.

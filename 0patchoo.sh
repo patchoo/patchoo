@@ -1315,7 +1315,7 @@ updateHandler()
 		then
 			secho "restarting now!"
 			rm /tmp/.patchoo-restart
-			reboot
+			$jb policy -event restart
 			return
 		fi
 		# we will either reboot and pickup again at loginwindow
@@ -1337,7 +1337,7 @@ updateHandler()
 	rm /Library/Scripts/patchoo.sh
 	killall jamfHelper
 	# all done loginwindow is unlocked
-	reboot &
+	$jb policy -event restart
 }
 
 #
@@ -1641,7 +1641,7 @@ deploySetup()
 		$cdialogbin msgbox --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provision. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
 		#logoutUser
 		#sleep 10 # not pretty
-		reboot
+		$jb policy -event restart
 	fi
 }
 
@@ -1704,7 +1704,7 @@ deployHandler()
 	rm "$pddeployreceipt"
 	touch "${pddeployreceipt}.done"
 	sleep 10
-	reboot
+	$jb policy -event restart
 }
 
 deployGroup()
