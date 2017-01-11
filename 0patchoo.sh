@@ -45,7 +45,7 @@ selfsignedjsscert=true
 
 # users can defer x update prompts
 defermode=true
-defaultdeferthresold="10"
+defaultdeferthresold="5"
 
 # REALLY forces a logout when defers run out
 nastymode=true
@@ -88,7 +88,7 @@ pdusebuildea="false" # isn't setting the ea on the computer record
 pdusedepts="true"
 pdusebuildings="true"
 
-pdsetcomputername=true # prompt to set computername
+pdsetcomputername="false" # prompt to set computername
 
 # the name of your ext attribute to use as the patchooDeploy build identfier - a populated dropdown EA.
 pdbuildea="patchoo Build"
@@ -133,11 +133,13 @@ Your computer is peforming a major OS X upgrade.
 Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete.
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 
-iconsize="72"
+iconsize="64"
 dialogtimeout="210"
 
-# This is used for banding purposes. Replace with your own corporate icns file.
-lockscreenlogo="/System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns"
+lockscreenlogo="$datafolder/cs.icns" # used for fauxLogout (ARD LockScreen will display this) and bootstrap
+packageicon="$datafolder/pkg.icns" # used for patching dialogs
+stopicon="$datafolder/AlertStopIcon.icns" # used for patching dialogs
+cautionicon="$datafolder/caution.icns" # used for patching dialogs
 
 # log to the jamf log.
 logto="/var/log/"
@@ -151,6 +153,7 @@ log="jamf.log"
 ##################################
 ##################################
 
+consoleuser="$(python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')"
 osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need patch version
 udid=$( ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { split($0, line, "\""); printf("%s\n", line[4]); }' )
 
@@ -173,7 +176,7 @@ fi
 
 cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
 tnotifybin="${tnotify}/Contents/MacOS/terminal-notifier"
-bootstrapagent="/Library/LaunchAgents/com.company.patchoo-bootstrap.plist"
+bootstrapagent="/Library/LaunchAgents/com.credit-suisse.patchoo-bootstrap.plist"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
 # set and read preferences
@@ -276,12 +279,7 @@ secho()
 		then
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			# Added extra code to improve terminal notifier reliability by running as current user. Thanks mm2270!
-			# https://jamfnation.jamfsoftware.com/discussion.html?id=9902#responseChild108320
-			loggedInUser=$(stat -f%Su /dev/console)
-			userUID=$(id -u ${loggedInUser})
-			/bin/launchctl asuser "$userUID" sudo -iu "$loggedInUser" "$tnotifybin" -title "$title" -message "$message"
-			# "$cdialogbin" bubble --title "$title" --text "$message" --icon "$icon" --timeout "$timeout" &
+			su -l "$consoleuser" -c " "'"'$tnotifybin'"'" -title "'"'$title'"'" -message "'"'$message'"'" "
 		fi
 	else
 		echo "$name: $message"
@@ -300,7 +298,7 @@ displayDialog()
 	button3="$7"
 	
 	# show the dialog...
-	"$cdialogbin" msgbox --title "$title" --icon-file "$icon" --text "$title2" --informative-text "$text" --timeout "$dialogtimeout" --button1 "$button1" --button2 "$button2" --button3 "$button3" --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --string-output
+    su -l "${consoleuser}" -c " "'"'$cdialogbin'"'" msgbox --title "'"'$title'"'" --icon-file "'"'$icon'"'" --text "'"'$title2'"'" --informative-text ""'$text'"" --timeout "'"'$dialogtimeout'"'" --button1 "'"'$button1'"'" --button2 "'"'$button2'"'" --button3 "'"'$button3'"'" --icon-height ${iconsize} --icon-width ${iconsize} --width 500 --string-output "
 }
 
 makeMessage()
@@ -312,7 +310,6 @@ makeMessage()
 checkConsoleStatus()
 {
 	userloggedin="$(who | grep console | awk '{print $1}')"
-	consoleuser="$(python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')"
 	screensaver="$(pgrep ScreenSaverEngine)"
 
 	if [ "$screensaver" != "" ]
@@ -458,7 +455,7 @@ checkASU()
 	fi
 
 	swupdateout="$patchootmp/swupdateout-$RANDOM.tmp"
-	secho "checking for apple software updates ..."
+    secho "Checking for Apple Updates" 2 "Apple Software Update" "globe"
 	softwareupdate -la > "$swupdateout"
 	# check if there are any updates
 	if [ "$(cat "$swupdateout" | grep "\*")" != "" ]
@@ -482,7 +479,7 @@ checkASU()
 		do
 			if [ ! -f "$pkgdatafolder/$asupkg.asuinfo" ] # it hasn't been downloaded
 			then
-				secho "softwareupdate is downloading $asupkg"
+				secho "${asudescriptarray[$i]}" 2 "Apple Software Update" "globe"
 				softwareupdate -d "$asupkg"
 				# (insert error checking)
 				echo "${asudescriptarray[$i]}" > "$pkgdatafolder/$asupkg.asuinfo"
@@ -538,9 +535,9 @@ setASUCatalogURL()
 			10.11)
 				swupdateurl="$asuserver/content/catalogs/others/index-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog_${asureleasecatalog[$groupid]}.sucatalog"
 				;;
-			10.12)
-				swupdateurl="$asuserver/content/catalogs/others/index-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog_${asureleasecatalog[$groupid]}.sucatalog"
-				;;
+            10.12)
+                swupdateurl="$asuserver/content/catalogs/others/index-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog_${asureleasecatalog[$groupid]}.sucatalog"
+                ;;
 			*)
 				secho "I can't do this OS X version.. sadface."
 				return
@@ -843,7 +840,7 @@ promptInstall()
 			#
 			makeMessage ""
 			makeMessage "$msginstalllater"
-			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "$lockscreenlogo" "Install and Restart..." "Install and Shutdown..." "Later")
+			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "$packageicon" "Install and Restart..." "Install and Shutdown..." "Later")
 			
 			case $answer in			
 				"Install and Restart..." )
@@ -879,7 +876,7 @@ promptInstall()
 			#
 			# self service we don't tell people to use self service, we don't update the defer counter 
 			#
-			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Logout and Install..." "Cancel" )
+			answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "$packageicon" "Logout and Install..." "Cancel" )
 		;;		
 		
 		*)
@@ -923,7 +920,7 @@ promptInstall()
 					then
 						# if the defercounter has run out, FORCED INSTALLATION! set timeout to 30 minutes
 						dialogtimeout="1830"
-						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "package" "Logout and Install...")
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftforced" "$packageicon" "Logout and Install...")
 						# if it's nastymode (tm) we Logout and Install no matter what
 						[ $nastymode ] && answer="Logout and Install..."
 						secho "FORCING INSTALL!"
@@ -931,14 +928,14 @@ promptInstall()
 						# prompt user with defer option
 						makeMessage ""
 						makeMessage "$msginstalllater"
-						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later ($deferremain remaining)" "Logout and Install...")
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "$packageicon" "Later ($deferremain remaining)" "Logout and Install...")
 						secho "deferral counter: $defercount, defer thresold: $deferthreshold"
 					fi
 				else
 						# if we don't have deferals enabled
 						makeMessage ""
 						makeMessage "$msginstalllater"
-						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "package" "Later" "Logout and Install...")
+						answer=$(displayDialog "$message" "$msgtitlenewsoft" "$msgnewsoftware" "$packageicon" "Later" "Logout and Install...")
 				fi	
 			else
 				# there something preventing a dialog, don't display anything, return the consolestatus
@@ -1023,14 +1020,14 @@ preInstallWarnings()
 {
 	if [ -f "$pkgdatafolder/.os-upgrade" ]
 	then
-		displayDialog "$msgosupgradewarning" "OS Upgrade" "IMPORTANT NOTICE!" "caution" "I Understand... Install and Restart"
+		displayDialog "$msgosupgradewarning" "OS Upgrade" "IMPORTANT NOTICE!" "$cautionicon" "I Understand... Install and Restart"
 		touch /tmp/.patchoo-restart-forced
 		return # we don't want other warnings
 	fi	
 
 	if [ -f "$pkgdatafolder/.fw-update" ]
 	then
-		displayDialog "$msgfirmwarewarning" "Firmware Update Warning" "IMPORTANT NOTICE!" "stop" "I Understand... Install and Restart"
+		displayDialog "$msgfirmwarewarning" "Firmware Update Warning" "IMPORTANT NOTICE!" "$stopicon" "I Understand... Install and Restart"
 		touch /tmp/.patchoo-restart-forced
 	fi
 }
@@ -1082,7 +1079,7 @@ fauxLogout()
 			# if we still haven't quit all Apps
 			dialogtimeout=60
 			secho "apps are still running after $waitforlogout seconds, prompting user and trying quit loop again.."
-			displayDialog "Ensure you have saved your documents and quit any open applications. You can Force Quit applications that aren't responding by pressing CMD-SHIFT-ESC." "Logging out" "The Logout process has stalled" "caution" "Continue Logout"
+			displayDialog "Ensure you have saved your documents and quit any open applications. You can Force Quit applications that aren't responding by pressing CMD-SHIFT-ESC." "Logging out" "The Logout process has stalled" "$cautionicon" "Continue Logout"
 			quitAllApps
 		fi
 	done
@@ -1186,7 +1183,7 @@ processLogout()
 	then
 		secho "restarting now!"
 		rm /tmp/.patchoo-restart
-		shutdown -r now &
+		$jb policy -event restart
 	fi
 }
 
@@ -1301,45 +1298,6 @@ startup()
 	[ -f "$datafolder/.patchoo-recon-required" ] && jamfRecon
 }
 
-
-updateHandler()
-{
-	jamfRecon
-	jamfPolicyUpdate 
-	installsavail=$(defaults read "$prefs" InstallsAvail  2> /dev/null) 	# check if updates are avaialble
-	
-	while [ "$installsavail" == "Yes" ]
-	do
-		installSoftware
-		if [ -f /tmp/.patchoo-restart ]
-		then
-			secho "restarting now!"
-			rm /tmp/.patchoo-restart
-			$jb policy -event restart
-			return
-		fi
-		# we will either reboot and pickup again at loginwindow
-		# or run another update and install loop
-		jamfRecon
-		jamfPolicyUpdate
-		installsavail=$(defaults read "$prefs" InstallsAvail 2> /dev/null)
-	done
-
-	# no more updates stop bootstrap
-	if [ -f "${pddeployreceipt}" ]
-	then
-		touch "${pddeployreceipt}.updated" 	# touch a receipt, can be used for smartgroup notification
-		jamfRecon
-	fi
-	secho "update process complete!"
-	sleep 10
-	rm "$bootstrapagent"
-	rm /Library/Scripts/patchoo.sh
-	killall jamfHelper
-	# all done loginwindow is unlocked
-	$jb policy -event restart
-}
-
 #
 #  deploy functions
 #
@@ -1375,7 +1333,7 @@ checkAndReadProvisionInfo()
 		building=$( curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/computers/udid/$udid/subset/location | xpath "//computer/location/building/text()" 2> /dev/null)
 		# error checkingx
 		secho "building:  $building"
-		echo "Building: $building" >> $pdprovisiontmp
+		echo "Country: $building" >> $pdprovisiontmp
 		[ "$building" == "" ] && pdprovisioninfo=false
 	fi
 
@@ -1447,12 +1405,7 @@ promptProvisionInfo()
 		fi
 	else
 		secho "provisioning information incomplete..."
-		skipprompt=$( $cdialogbin msgbox --title "Alert" --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --timeout 90 --button1 "Configure" --button2 "Skip" )
-		if [[ "$skipprompt" == "Skip" ]];
-		then
-			deployready="true"
-			return 0
-		fi
+		skipprompt=$( $cdialogbin msgbox --title "Alert" --icon-file "$lockscreenlogo" --informative-text "This Mac has incomplete provisioning information" --string-output --float --timeout 90 --button1 "Configure" )
 	fi
 
 	if [[ $pdusebuildea = "true" ]];
@@ -1473,7 +1426,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		patchoobuildvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --title "Deployment EA" --text "Please Choose:" --items $(< $choicetmp) --string-output --button1 "Ok" )
+		patchoobuildvalue=$( "$cdialogbin" dropdown --icon-file "$lockscreenlogo" --title "Deployment EA" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		patchoobuildvalue=$( echo $patchoobuildvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1497,7 +1450,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the department name.
-		deptvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Department" --text "Please Choose:" --items $(< $choicetmp) --string-output --button1 "Ok" )
+		deptvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Department" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		deptvalue=$( echo $deptvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1520,7 +1473,7 @@ promptProvisionInfo()
 		done
 		
 		# pop up choices dialog box. strip button report as we only want the building name.
-		buildingvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Building" --text "Please Choose:" --items $(< $choicetmp) --string-output --button1 "Ok" )
+		buildingvalue=$( $cdialogbin dropdown --icon-file "$lockscreenlogo" --title "Country" --text "Please Choose:" --items $(< $choicetmp) --string-output --float --button1 "Ok" )
 		buildingvalue=$( echo $buildingvalue | sed -n 2p )
 		IFS=$OIFS
 		
@@ -1561,14 +1514,14 @@ promptProvisionInfo()
 	do
 		if [ "$pdapiadminname" == "" ]
 		then
-			entry=$( $cdialogbin inputbox --title "Username" --icon-file "$lockscreenlogo" --informative-text "Please enter your username:" --text $hardcode --string-output --button1 "Ok" )
+			entry=$( $cdialogbin inputbox --title "Username" --icon-file "$lockscreenlogo" --informative-text "Please enter your username:" --text $hardcode --string-output --float --button1 "Ok" )
 			tmpapiadminuser=$( echo $entry | awk '{ print $2 }' )
 		else
 			tmpapiadminuser="$pdapiadminname"
 		fi		
 		if [ "$pdapiadminpass" == "" ]
 		then	
-			entry=$( $cdialogbin inputbox --title "Password" --icon-file "$lockscreenlogo" --informative-text "Please enter your password:" --text $hardcode --string-output --button1 "Ok" )
+			entry=$( $cdialogbin inputbox --title "Password" --icon-file "$lockscreenlogo" --informative-text "Please enter your password:" --text $hardcode --string-output --float --button1 "Ok" )
 			tmpapiadminpass=$( echo $entry | awk '{ print $2 }' )	
 		else
 			tmpapiadminpass="$pdapiadminpass"
@@ -1628,10 +1581,6 @@ deploySetup()
 		fi
 	done
 
-	# Clean up any existing bootstrap
-	srm /Library/Preferences/$bootstrapagent
-	srm /Library/Scripts/patchoo.sh
-
 	bootstrapSetup # setup bootstrap bits
 
 	secho "patchoo deploy is ready"
@@ -1680,13 +1629,13 @@ deployHandler()
 		$jb policy -event "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	
-	if $department
+	if department
 	then
 		secho "firing deploy-${department} trigger ..."
 		$jb policy -event "deploy-${department}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	
-	if $building
+	if building
 	then
 		secho "firing deploy-${building} trigger ..."
 		$jb policy -event "deploy-${building}"		# calling our build specific trigger eg. deploy-management, deploy-studio
@@ -1700,10 +1649,10 @@ deployHandler()
 	fi
 	
 	# deploy finished, rebooting to start update
-	secho "deployment process has finished, restarting to start update process ..."
+	secho "deployment process has finished, restarting soon ..."
 	rm "$pddeployreceipt"
 	touch "${pddeployreceipt}.done"
-	sleep 10
+	sleep 5
 	$jb policy -event restart
 }
 
@@ -1739,7 +1688,13 @@ bootstrap()
 	then
 		deployHandler
 	else
-		updateHandler
+    	secho "update process complete!"
+    	sleep 10
+    	rm "$bootstrapagent"
+    	rm /Library/Scripts/patchoo.sh
+    	killall jamfHelper
+    	# all done loginwindow is unlocked
+    	$jb policy -event restart
 	fi
 }
 
@@ -1764,44 +1719,6 @@ bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
         <string>''</string>
         <string>''</string>
         <string>--bootstraphelper</string>
-	</array>
-</dict>
-</plist>'
-
-	echo "$bootstrappagentplist" > "$bootstrapagent"
-	# set permissions for agent
-	chown root:wheel "$bootstrapagent"
-	chmod 644 "$bootstrapagent"
-	# copy the script to local drive
-	cp "$0" /Library/Scripts/patchoo.sh
-	chown root:wheel /Library/Scripts/patchoo.sh
-	chmod 700 /Library/Scripts/patchoo.sh
-	# unset any loginwindow autologin
-	defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser ""
-	secho "bootstrap setup done, you need to restart"
-}
-
-bootstrapSetupDeploy()
-{
-# write out a launchagent to call bootstrap helper
-
-bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>Label</key>
-	<string>com.github.patchoo-bootstrap</string>
-	<key>RunAtLoad</key>
-	<true/>
-	<key>LimitLoadToSessionType</key>
-	<string>LoginWindow</string>
-	<key>ProgramArguments</key>
-	<array>
-        <string>/Library/Scripts/patchoo.sh</string>
-        <string>''</string>
-        <string>''</string>
-        <string>''</string>
-        <string>--deploysetup</string>
 	</array>
 </dict>
 </plist>'
@@ -1967,12 +1884,7 @@ case $mode in
 		# called by the launch agent, drives the bootstrap process (deploy and updates)
 		bootstrap
 	;;
-	
-	"--deploybootstrap" )
-		# setups up deployment bootstrap, run on enrollment complete.
-		bootstrapSetupDeploy
-	;;
-	
+
 	"--deploysetup" )
 		# setups up deployment, run on enrollment complete
 		deploySetup

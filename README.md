@@ -9,7 +9,11 @@ Also the API stuff has been recoded to use a Mac's UUID (or JAMF insist it's a U
 
 The patchoo EA, Casper buildings and departments can now be used either individually or in combination to form custom triggers for software / policy deployment. You can now have a three level deployment system ranging from everyone -> building -> department .. and custom EA or any combination you need.
 
-28th April 2016 - EA support is buggy. Can download but changes are not saved back to JSS currently.
+Lastly take note of a new policy required in the documentation. This is so we can have authenticated FV2 reboots so macOS upgrades won't immediately stick at the FV2 login screen.
+
+28th April 2016 - EA support is buggy. Can download but changes are not saved back to JSS currently. This is still on the to do list.
+
+11th Jan 2017 - I now consider this fork ready for production use. It's been through some major work in the past few months. Documentation will be updated soon.
 
 Richard (franton).
 
@@ -65,10 +69,10 @@ From a user experience perspective it:
 
 Requirements
 ------------
-* CocoaDialog 3.x
+* CocoaDialog 3.0.999 (loceee's own fork)
 * JAMF Casper (developed & tested on 9.22 - might work on 8.x)
 * http-enabled distribution points or JDS (policy within policy doesn't play nice with fileshare-based CDPs)
-* OSX (10.6-10.9)
+* OSX (10.6-10.12)
 * *A big bunch of Macs!*
 
 
