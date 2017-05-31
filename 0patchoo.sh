@@ -16,11 +16,11 @@
 ###################################
 
 name="patchoo"
-version="0.9960"
+version="0.9961"
 
 # read only api user please!
-apiuser="apirw"
-apipass="apirw"
+apiuser="apiro"
+apipass="apiro"
 
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
@@ -98,8 +98,8 @@ pdpromptprovisioninfo=true
 
 # this api user requires update/write access to computer records (somewhat risky putting in here - see docs) 
 # leaving blank will prompt console user for a jss admin account during attribute set (as above)
-pdapiadminname="apirw"
-pdapiadminpass="apirw"
+pdapiadminname="apiuser"
+pdapiadminpass="apipass"
 
 pddeployreceipt="/Library/Application Support/JAMF/Receipts/patchooDeploy" # this fake receipt internally, and to communicate back to the jss about different patchoo deploy states.
 
@@ -113,9 +113,9 @@ msgtitlenewsoft="New Software Available"
 msgnewsoftware="The following new software is available"
 msginstalllater="(You can perform the installation later via Self Service)"
 msgnewsoftforced="The following software must be installed now!"
-msgbootstrap="Mac is provisioning. Do not interrupt or power off."
+msgbootstrap="Installing Software. Do not interrupt or power off."
 msgbootstapdeployholdingpattern="Awaiting provisioning information. Your admin has been notified."
-msgpatchoodeploywelcome="Welcome to patchoo deploy.
+msgpatchoodeploywelcome="Welcome to *company name* Deployment.
 We are gathering provisioning information"
 msgshortfwwarn="
 IMPORTANT: A firmware update will be installed.
@@ -126,11 +126,15 @@ Ensure you connect AC power before starting the update process.
 It could take up to 90 minutes to complete."
 msgfirmwarewarning="
 Firmware updates will be installed after your computer restarts.
+
 Please ensure you are connected to AC Power! Do NOT touch any keys or the power button! A long tone will sound and your screen may be blank for up to 5 minutes.
+
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 msgosupgradewarning="
 Your computer is peforming a major OS X upgrade.
-Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete.
+
+Please ensure you are connected to AC Power! Your computer will restart and the OS upgrade process will continue. It will take up to 90 minutes to complete. 
+
 IT IS VERY IMPORTANT YOU DO NOT INTERRUPT THIS PROCESS AS IT MAY LEAVE YOUR MAC INOPERABLE"
 
 iconsize="64"
@@ -140,6 +144,7 @@ lockscreenlogo="$datafolder/cs.icns" # used for fauxLogout (ARD LockScreen will 
 packageicon="$datafolder/pkg.icns" # used for patching dialogs
 stopicon="$datafolder/AlertStopIcon.icns" # used for patching dialogs
 cautionicon="$datafolder/caution.icns" # used for patching dialogs
+brandid="com.companyname.id"
 
 # log to the jamf log.
 logto="/var/log/"
@@ -176,7 +181,7 @@ fi
 
 cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
 tnotifybin="${tnotify}/Contents/MacOS/terminal-notifier"
-bootstrapagent="/Library/LaunchAgents/com.credit-suisse.patchoo-bootstrap.plist"
+bootstrapagent="/Library/LaunchAgents/com.patchoo-bootstrap.plist"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
 # set and read preferences
@@ -279,7 +284,7 @@ secho()
 		then
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			su -l "$consoleuser" -c " "'"'$tnotifybin'"'" -title "'"'$title'"'" -message "'"'$message'"'" "
+			su -l "$consoleuser" -c " "'"'$tnotifybin'"'" -sender "'"'$brandid'"'" -title "'"'$title'"'" -message "'"'$message'"'" "
 		fi
 	else
 		echo "$name: $message"
@@ -310,6 +315,7 @@ makeMessage()
 checkConsoleStatus()
 {
 	userloggedin="$(who | grep console | awk '{print $1}')"
+	consoleuser="$(python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')"
 	screensaver="$(pgrep ScreenSaverEngine)"
 
 	if [ "$screensaver" != "" ]
@@ -382,7 +388,6 @@ spawnScript()
 # the mains brains.
 #
 
-
 cachePkg()
 {
 	# run after a pkg is cached in a policy
@@ -397,7 +402,7 @@ cachePkg()
 		pkgext=${pkgname##*.} 	# handle zipped bundle pkgs
 		[ "$pkgext" == "zip" ] && pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 		# get pkgdata from the jss api
-		curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/packages/name/$pkgname" -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/packages/name/$pkgname -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
 		if [ "$pkgdescription" == "<info />" ] || [ "$pkgdescription" == "" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
@@ -427,7 +432,7 @@ cachePkg()
 				# query the JSS for the prereqpolicy
 				secho "$prereqreceipt is required and NOT found"
 				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/policies/name/$prereqpolicy" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
@@ -642,7 +647,15 @@ installCasperPkg()
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<fut>true</fut>")" != "" ] && jamfinstallopts="$jamfinstallopts -fut"
 	[ "$(cat "/Library/Application Support/JAMF/Waiting Room/$casppkg.cache.xml" | grep "<feu>true</feu>")" != "" ] && jamfinstallopts="$jamfinstallopts -feu"
 	secho "jamf is installing $casppkg"
+	# Standard pkg install here. 99% of cases.
 	$jb install "$jamfinstallopts" -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
+	install=$( ls "/Library/Application Support/JAMF/Waiting Room/" | grep ".app" )
+	if [ "$install" != "" ];
+	then
+		# OS Upgrade detected. Find CD pid and run startosinstall.
+		pid=$( pgrep cocoaDialog )
+		"/Library/Application Support/JAMF/Waiting Room/$install/Contents/Resources/startosinstall" --applicationpath "/Library/Application Support/JAMF/Waiting Room/$install" --nointeraction --pidtosignal $pid &
+	fi
 	# (insert error checking)
 	# remove from the waiting room
 
@@ -700,7 +713,7 @@ installSoftware()
 				done < "$casppkginfo"
 				echo "100 Installation complete"
 				sleep 1
-				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required"
+				[ -f "$pkgdatafolder/.restart-required" ] && echo "100 Restart is required - please wait."
 				sleep 1
 			) | "$cdialogbin" progressbar --icon installer --float --title "Installing Software" --text "Starting Installation..."  --icon-height "$iconsize" --icon-width "$iconsize" --width "500" --height "114"
 		fi
@@ -1567,6 +1580,7 @@ deploySetup()
 	touch "$pddeployreceipt"
 	deployready=false
 
+    $jb flushPolicyHistory
 	$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 10 --button1 "Ok"
 
 	until $deployready
@@ -1682,20 +1696,19 @@ deployGroup()
 
 bootstrap()
 {
-	spawnScript
+    spawnScript
 	# this starts the bootstrap deploy and update process.
 	if [ -f "$pddeployreceipt" ] && [ ! -f "${pddeployreceipt}.done" ]
 	then
 		deployHandler
-	else
-    	secho "update process complete!"
-    	sleep 10
-    	rm "$bootstrapagent"
-    	rm /Library/Scripts/patchoo.sh
-    	killall jamfHelper
-    	# all done loginwindow is unlocked
-    	$jb policy -event restart
-	fi
+    fi
+	secho "Deploy process complete!"
+	sleep 10
+	rm "$bootstrapagent"
+	rm /Library/Scripts/patchoo.sh
+	killall jamfHelper
+	# all done loginwindow is unlocked
+	$jb policy -event restart
 }
 
 bootstrapSetup()

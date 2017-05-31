@@ -1,7 +1,10 @@
 Deploying Major OSX Upgrades
 ----------------------------
 
-Deploying major OSX Upgrades build with the excellent [createOSXInstallPkg](https://code.google.com/p/munki/downloads/list) is identical to deploying any other pkg.
+Deploying major OSX Upgrades build with the excellent [createOSXInstallPkg](https://code.google.com/p/munki/downloads/list) is identical to deploying any other pkg. However as of 10.12.3, the brtool has been restricted by Apple in place of the new startosinstall tool.
+As a result, patchoo now supports the packaging of the installer app bundle from the App Store. The requirement however is that the file is installed into the JAMF Waiting Room directory for patchoo to make use of it. See picture below:
+
+![10.12.5 deployment pkg](images/macos-upgrade-pkg.png)
 
 **IMPORTANT:** *Ensure that when you upload the pkg into Casper Admin, you set the "requires reboot" pkg metadata. This is read from the JSS by patchoo and will be required to complete the OSX Upgrade!*
 
