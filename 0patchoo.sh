@@ -4,7 +4,7 @@
 # ========
 # Casper patching done right!
 #
-# https://github.com/patchoo/patchoo
+# https://github.com/franton/patchoo
 #
 # patchoo somewhat emulates munki workflows and user experience for JAMF's Casper.
 #
@@ -16,7 +16,7 @@
 ###################################
 
 name="patchoo"
-version="0.9961"
+version="0.9965"
 
 # read only api user please!
 apiuser="apiro"
@@ -115,7 +115,8 @@ msginstalllater="(You can perform the installation later via Self Service)"
 msgnewsoftforced="The following software must be installed now!"
 msgbootstrap="Installing Software. Do not interrupt or power off."
 msgbootstapdeployholdingpattern="Awaiting provisioning information. Your admin has been notified."
-msgpatchoodeploywelcome="Welcome to *company name* Deployment.
+msgdeployheading="Company Name Deployment. Please wait."
+msgpatchoodeploywelcome="Welcome to Company Name Deployment.
 We are gathering provisioning information"
 msgshortfwwarn="
 IMPORTANT: A firmware update will be installed.
@@ -144,7 +145,7 @@ lockscreenlogo="$datafolder/cs.icns" # used for fauxLogout (ARD LockScreen will 
 packageicon="$datafolder/pkg.icns" # used for patching dialogs
 stopicon="$datafolder/AlertStopIcon.icns" # used for patching dialogs
 cautionicon="$datafolder/caution.icns" # used for patching dialogs
-brandid="com.companyname.id"
+brandid="com.companyname.id" # used for terminal notifier branding
 
 # log to the jamf log.
 logto="/var/log/"
@@ -158,7 +159,7 @@ log="jamf.log"
 ##################################
 ##################################
 
-consoleuser="$(python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')"
+consoleuser=`python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");'`
 osxversion=$(sw_vers -productVersion | cut -f-2 -d.) # we don't need patch version
 udid=$( ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { split($0, line, "\""); printf("%s\n", line[4]); }' )
 
@@ -180,8 +181,8 @@ else
 fi
 
 cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
-tnotifybin="${tnotify}/Contents/MacOS/terminal-notifier"
-bootstrapagent="/Library/LaunchAgents/com.patchoo-bootstrap.plist"
+tnotifybin="$tnotify"
+lockscreenagent="$datafolder/lockscreen.sh"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
 # set and read preferences
@@ -253,7 +254,7 @@ fi
 
 
 # if the bootstrap agent exists, set bootstrapmode
-if [ -f "$bootstrapagent" ]
+if [ -f "$lockscreenagent" ]
 then
 	bootstrapmode=true
 else
@@ -284,7 +285,7 @@ secho()
 		then
 			[ "$title" == "" ] && title="Message"
 			[ "$icon" == "" ] && icon="notice"
-			su -l "$consoleuser" -c " "'"'$tnotifybin'"'" -sender "'"'$brandid'"'" -title "'"'$title'"'" -message "'"'$message'"'" "
+			su -l "$consoleuser" -c " "'"'$tnotifybin'"'" -sender "'"'$brandid'"'" -title "'"'$title'"'" -message "'"'$message'"'" -timeout "'"5"'" & "
 		fi
 	else
 		echo "$name: $message"
@@ -432,7 +433,7 @@ cachePkg()
 				# query the JSS for the prereqpolicy
 				secho "$prereqreceipt is required and NOT found"
 				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u {$apiuser}:${apipass} ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
@@ -1575,11 +1576,25 @@ promptProvisionInfo()
 
 deploySetup()
 {
-	# run on enrollment complete, setups up deploy process
+	# run on enrollment complete, starts up the deploy process
 	secho "setting up patchoo deploy .."
 	touch "$pddeployreceipt"
 	deployready=false
 
+	# Close any running apps
+	secho "closing any existing running apps..."
+	while [ "$(getAppList)" != "" ]
+	do
+		for (( c=1; c<=(( 30 / 3 )); c++ ))
+		do
+			quitAllApps
+			#check if all apps are quit break if so, otherwise fire every $tryquitevery
+			[ "$(getAppList)" == "" ] && break
+			sleep 3
+		done
+	done	
+
+	# flush existing policy history, print welcome message
     $jb flushPolicyHistory
 	$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 10 --button1 "Ok"
 
@@ -1595,17 +1610,94 @@ deploySetup()
 		fi
 	done
 
-	bootstrapSetup # setup bootstrap bits
+	# spawn lockscreen script here
+	cat > $lockscreenagent << EOF
+#!/bin/bash
+# patchoo lockscreen helper
 
-	secho "patchoo deploy is ready"
-	
-	if [ "$(checkConsoleStatus)" == "userloggedin" ] # if a user is logged in, prompt and restart... otherwise we'll sort that via a launchd or other method
+# variables set here
+
+# Where's the jamf binary stored? This is for SIP compatibility.
+jb=\`/usr/bin/which jamf\`
+if [[ "\$jb" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ ! -e "/usr/local/bin/jamf" ]]; then
+	jb="/usr/sbin/jamf"
+elif [[ "\$jb" == "" ]] && [[ ! -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+	jb="/usr/local/bin/jamf"
+elif [[ "\$jb" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+	jb="/usr/local/bin/jamf"
+fi
+
+jamfhelper="$jamfhelper"
+msgdeployheading="$msgdeployheading"
+msglockscreen="$msglockscreen"
+lockscreenlogo="$lockscreenlogo"
+lockscreenagent="$lockscreenagent"
+
+# lock immediately
+"\$jamfhelper" -windowType fs -description "\$msglockscreen" -icon "\$lockscreenlogo" &
+
+# caffeinate this mac to stop it going to sleep at the wrong time
+caffeinate -d -i -m -u &
+caffeinatepid=\$!
+
+# initial message to user that we are waiting for the jss to become available. should be or we will lock solid.
+secho "waiting for jss.."
+until jamf checkJSSConnection
+do
+	sleep 2
+done
+
+killall jamfHelper
+
+# trigger the software deployment policy
+\$jb policy -event "deploysoftware" &
+
+# these messages will be ignored in the jamf.log, the previous entry will be displayed at the lockscreen
+ignoremessages=("The management framework will be enforced" "Checking for policies triggered by")
+
+while [ -f "\$lockscreenagent" ]	# whilst the agent exists, we are in lockscreen mode
+do
+	tailvalue=1
+	newmessage=""
+	while [ "\$newmessage" == "" ]
+	do
+		newmessage="\$(tail -n\${tailvalue} /var/log/jamf.log | head -n1 | cut -d' ' -f 4- | sed -e \$'s/: /\\\\\n\\\\\n/g')"
+		for ignoremessage in ${ignoremessages[@]}
+		do
+			if [ "\$(echo "$newmessage" | grep "$ignoremessage")" != "" ]
+			then
+				# weve found an ignore message, bounce up an entry.
+				newmessage=""
+				(( tailvalue ++ ))
+			fi
+		done
+	done
+
+	if [ "\$message" != "\$newmessage" ] # if the message has updated, change login screen
 	then
-		$cdialogbin msgbox --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provision. This Mac will restart in 2 minutes" --string-output --float --timeout 120 --button1 "Restart"
-		#logoutUser
-		#sleep 10 # not pretty
-		$jb policy -event restart
+		message="\$newmessage"
+		displaymsg="\$msgbootstrap
+\$message"
+		killall jamfHelper
+		"\$jamfhelper" -windowType fs -heading "\$msgdeployheading" -description "\$displaymsg" -icon "\$lockscreenlogo" &
 	fi
+	sleep 3 # check for new message every 3 seconds
+done
+	
+# uncaffeninate and quit
+kill "\$caffeinatepid"
+EOF
+
+	# set permissions for agent
+	chown root:wheel "$lockscreenagent"
+	chmod 644 "$lockscreenagent"
+
+	# show user that we're ready to go
+	secho "patchoo deploy is ready"
+	$cdialogbin msgbox --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provision. This will start in 2 minutes" --string-output --float --timeout 120 --button1 "Provision"
+
+	# start spawned script here
+	/bin/bash "$lockscreenagent"
 }
 
 deployHandler()
@@ -1632,8 +1724,6 @@ deployHandler()
 	sleep 3
 	
 	# run recurring trigger before we start deploy, in case we have stuff we need to do on that - once per computer etc.
-	secho "firing recurring checkin trigger ..."
-	$jb policy
 	secho "firing deploy trigger ..."
 	$jb policy -event "deploy"
 	
@@ -1662,12 +1752,17 @@ deployHandler()
 		installSoftware
 	fi
 	
-	# deploy finished, rebooting to start update
-	secho "deployment process has finished, restarting soon ..."
+	secho "running a recon ..."
+	$jb recon
+	secho "firing recurring checkin trigger ..."
+	$jb policy
+	
+	# deploy finished. now reboot.
+	secho "deployment process has finished, please wait ..."
 	rm "$pddeployreceipt"
 	touch "${pddeployreceipt}.done"
-	sleep 5
-	$jb policy -event restart
+	sleep 3
+	$jb policy -event "restart"
 }
 
 deployGroup()
@@ -1694,119 +1789,17 @@ deployGroup()
 	done
 }
 
-bootstrap()
+deploysoftware()
 {
-    spawnScript
-	# this starts the bootstrap deploy and update process.
 	if [ -f "$pddeployreceipt" ] && [ ! -f "${pddeployreceipt}.done" ]
 	then
 		deployHandler
     fi
 	secho "Deploy process complete!"
-	sleep 10
-	rm "$bootstrapagent"
+	sleep 5
+	rm "$lockscreenagent"
 	rm /Library/Scripts/patchoo.sh
 	killall jamfHelper
-	# all done loginwindow is unlocked
-	$jb policy -event restart
-}
-
-bootstrapSetup()
-{
-# write out a launchagent to call bootstrap helper
-
-bootstrappagentplist='<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>Label</key>
-	<string>com.github.patchoo-bootstrap</string>
-	<key>RunAtLoad</key>
-	<true/>
-	<key>LimitLoadToSessionType</key>
-	<string>LoginWindow</string>
-	<key>ProgramArguments</key>
-	<array>
-        <string>/Library/Scripts/patchoo.sh</string>
-        <string>''</string>
-        <string>''</string>
-        <string>''</string>
-        <string>--bootstraphelper</string>
-	</array>
-</dict>
-</plist>'
-
-	echo "$bootstrappagentplist" > "$bootstrapagent"
-	# set permissions for agent
-	chown root:wheel "$bootstrapagent"
-	chmod 644 "$bootstrapagent"
-	# copy the script to local drive
-	cp "$0" /Library/Scripts/patchoo.sh
-	chown root:wheel /Library/Scripts/patchoo.sh
-	chmod 700 /Library/Scripts/patchoo.sh
-	# unset any loginwindow autologin
-	defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser ""
-	secho "bootstrap setup done, you need to restart"
-}
-
-bootstrapHelper()
-{
-	# patchoo bootstrap helper
-	#
-	# lock immediately
-	"$jamfhelper" -windowType fs -description "$msgbootstrap" -icon "$lockscreenlogo" &
-
-	# the local helper will handle caffination and enforcing management in case jss not reachable immediately
-
-	# caffeinate this mac (? 10.7 ?)
-	caffeinate -d -i -m -u &
-	caffeinatepid=$!
-
-	secho "waiting for jss.."
-#	until jamf checkJSSConnection
-#	do
-		sleep 2
-#	done
-
-	killall jamfHelper
-
-	# trigger the bootstrap policy
-	$jb policy -event "bootstrap" &
-
-	# these messages will be ignored in the jamf.log, the previous entry will be displayed at the lockscreen
-	ignoremessages=("The management framework will be enforced" "Checking for policies triggered by")
-
-	while [ -f "$bootstrapagent" ]	# whilst the agent exists, we are in bootstrap mode
-	do
-		tailvalue=1
-		newmessage=""
-		while [ "$newmessage" == "" ]
-		do
-			newmessage="$(tail -n${tailvalue} /var/log/jamf.log | head -n1 | cut -d' ' -f 4- | sed -e $'s/: /\\\n\\\n/g')"
-			for ignoremessage in ${ignoremessages[@]}
-			do
-				if [ "$(echo "$newmessage" | grep "$ignoremessage")" != "" ]
-				then
-					# we've found an ignore message, bounce up an entry.
-					newmessage=""
-					(( tailvalue ++ ))
-				fi
-			done
-		done
-
-		if [ "$message" != "$newmessage" ] # if the message has updated, change login screen
-		then
-			message="$newmessage"
-			displaymsg="$msgbootstrap
-$message"
-			killall jamfHelper
-			"$jamfhelper" -windowType fs -description "$displaymsg" -icon "$lockscreenlogo" &
-		fi
-		sleep 3 # check for new message every 3 seconds
-	done
-	
-	# uncaffeninate
-	kill "$caffeinatepid"
 }
 
 jamfRecon()
@@ -1883,19 +1876,9 @@ case $mode in
 		patchooStart
 	;;
 
-	"--bootstrapsetup" )
-		bootstrapSetup
-		# setups up the bootstrap launchagent, copies script and turns off autologin
-	;;
-
-	"--bootstraphelper" )
-		# used internally by launchagent for loginwindow session, drives the loginwindow messages
-		bootstrapHelper
-	;;
-
-	"--bootstrap" )
-		# called by the launch agent, drives the bootstrap process (deploy and updates)
-		bootstrap
+	"--deploysoftware" )
+		# called by the deployment process when running.
+		deploysoftware
 	;;
 
 	"--deploysetup" )

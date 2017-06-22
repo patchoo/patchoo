@@ -9,11 +9,11 @@ Also the API stuff has been recoded to use a Mac's UUID (or JAMF insist it's a U
 
 The patchoo EA, Casper buildings and departments can now be used either individually or in combination to form custom triggers for software / policy deployment. You can now have a three level deployment system ranging from everyone -> building -> department .. and custom EA or any combination you need.
 
-Lastly take note of a new policy required in the documentation. This is so we can have authenticated FV2 reboots so macOS upgrades won't immediately stick at the FV2 login screen.
+Lastly take note of a new policy names required in the documentation. This does the following things:
 
-28th April 2016 - EA support is buggy. Can download but changes are not saved back to JSS currently. This is still on the to do list.
+Authenticated FV2 reboots so macOS upgrades won't immediately stick at the FV2 login screen.
 
-11th Jan 2017 - I now consider this fork ready for production use. It's been through some major work in the past few months. Documentation will be updated soon.
+DEP support for patchoo deploy. Rather than performing work over the loginwindow, this now operates in a user context. The policies have been simplified down to one call now.
 
 Richard (franton).
 

@@ -1,7 +1,7 @@
 Setup Patchoo Deploy Policy
 ---------------------------
 
-Patchoo Deploy requires the [Bootstrap Policy](setup_bootstrap_policies.md). The bootstrap policy drives both the patchoo Deploy and update loop.
+Patchoo Deploy requires the [Deploy Software Policy](setup_deploy_policy.md). The bootstrap policy drives both the patchoo Deploy and update loop.
 
 Apart from that, you only need a single setup policy. This is trigger by both `enrollment` and a custom `deploysetup` trigger.
 
