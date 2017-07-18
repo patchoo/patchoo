@@ -403,7 +403,8 @@ cachePkg()
 		pkgext=${pkgname##*.} 	# handle zipped bundle pkgs
 		[ "$pkgext" == "zip" ] && pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 		# get pkgdata from the jss api
-		curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/packages/name/$pkgname -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		fixpkgname=$( echo $pkgname | sed 's/ /%20/g' )
+		curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/packages/name/$fixpkgname -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
 		if [ "$pkgdescription" == "<info />" ] || [ "$pkgdescription" == "" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
