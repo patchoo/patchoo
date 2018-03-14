@@ -15,8 +15,14 @@
 #
 ###################################
 
+# commented out section for debugging purposes. don't enable in production!
+#time=$( date "+%d%m%y-%H%M" )
+#set -x
+#logfile=/var/log/patchoo"$time".log
+#exec > $logfile 2>&1
+
 name="patchoo"
-version="0.9965"
+version="0.9968"
 
 # read only api user please!
 apiuser="apiro"
@@ -25,8 +31,6 @@ apipass="apiro"
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
-cdialog="/Applications/Utilities/cocoaDialog.app"	#please specify the appbundle rather than the actual binary
-tnotify="/Applications/Utilities/terminal-notifier.app" #please specify the appbundle rather than the actual binary
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 # Where's the jamf binary stored? This is for SIP compatibility.
@@ -34,9 +38,9 @@ jb=`/usr/bin/which jamf`
 
  if [[ "$jb" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ ! -e "/usr/local/bin/jamf" ]]; then
     jb="/usr/sbin/jamf"
- elif [[ "$jb" == "" ]] && [[ ! -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+ elif [[ "$jamf_binary" == "" ]] && [[ ! -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
     jb="/usr/local/bin/jamf"
- elif [[ "$jb" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
+ elif [[ "$jamf_binary" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
     jb="/usr/local/bin/jamf"
  fi
 
@@ -85,8 +89,8 @@ asureleasecatalog[2]="beta"
 # patchooDeploy settings
 #
 pdusebuildea="false" # isn't setting the ea on the computer record
-pdusedepts="true"
-pdusebuildings="true"
+pdusedepts="false"
+pdusebuildings="false"
 
 pdsetcomputername="false" # prompt to set computername
 
@@ -94,7 +98,7 @@ pdsetcomputername="false" # prompt to set computername
 pdbuildea="patchoo Build"
 
 # do you want to prompt the console user to set attributes post enrollment? (not possible post casper imaging)
-pdpromptprovisioninfo=true
+pdpromptprovisioninfo="false"
 
 # this api user requires update/write access to computer records (somewhat risky putting in here - see docs) 
 # leaving blank will prompt console user for a jss admin account during attribute set (as above)
@@ -180,8 +184,8 @@ else
 	curlopts=""
 fi
 
-cdialogbin="${cdialog}/Contents/MacOS/cocoaDialog"
-tnotifybin="$tnotify"
+cdialogbin=$( /usr/bin/find /usr/local/cs/bin -iname "cocoaDialog" -type f )
+tnotifybin=$( /usr/bin/find /usr/local/cs/bin -iname "terminal-notifier" -type f )
 lockscreenagent="$datafolder/lockscreen.sh"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
@@ -198,7 +202,7 @@ displayatlogout=true
 # create the data folder if it doesn't exist
 [ ! -d "$datafolder" ] && mkdir -p "$datafolder"
 [ ! -d "$pkgdatafolder" ] && mkdir -p "$pkgdatafolder"
-chmod 700 "$datafolder"
+chmod 755 "$datafolder"
 
 # if there is no receipt dir, best make one... derp.
 [ ! -d "/Library/Application Support/JAMF/Receipts" ] && mkdir -p "/Library/Application Support/JAMF/Receipts"
@@ -395,23 +399,22 @@ cachePkg()
 	#	- checks for prereqs and calls policies if receipts not found
 	#	- gets pkg data from jss api and gives pkg friendly name in the gui
 	#
-	
+
 	# find the latest addition to the Waiting Room
-	pkgname=$(ls -t "/Library/Application Support/JAMF/Waiting Room/" | head -n 1 | grep -v .cache.xml)
+	pkgname=$(ls -t "/Library/Application Support/JAMF/Waiting Room/" | grep -v .cache.xml | head -n 1)
 	if [ ! -f "$pkgdatafolder/$pkgname.caspinfo" ] && [ "$pkgname" != "" ]
 	then
 		pkgext=${pkgname##*.} 	# handle zipped bundle pkgs
 		[ "$pkgext" == "zip" ] && pkgnamelesszip=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 		# get pkgdata from the jss api
-		fixpkgname=$( echo $pkgname | sed 's/ /%20/g' )
-		curl $curlopts -H "Accept: application/xml" -s -u ${apiuser}:${apipass} ${jssurl}JSSResource/packages/name/$fixpkgname -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
+		curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/packages/name/$(echo "$pkgname" | sed -e 's/ /\+/g')" -X GET > "$pkgdatafolder/$pkgname.caspinfo.xml"
 		# (error checking)
 		pkgdescription=$(cat "$pkgdatafolder/$pkgname.caspinfo.xml" | xpath //package/info 2> /dev/null | sed 's/<info>//;s/<\/info>//')
 		if [ "$pkgdescription" == "<info />" ] || [ "$pkgdescription" == "" ] # if it's no pkginfo in jss, set pkgdescription to pkgname (less ext)
 		then
 			if [ "$pkgext" == "zip" ]
 			then
-				pkgdescription=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/') 
+				pkgdescription=$(echo "$pkgname" | sed 's/\(.*\)\..*/\1/')
 			else
 				pkgdescription=$(echo "$pkgnamelesszip" | sed 's/\(.*\)\..*/\1/')
 			fi
@@ -434,11 +437,11 @@ cachePkg()
 				# query the JSS for the prereqpolicy
 				secho "$prereqreceipt is required and NOT found"
 				secho "querying jss for policy $prereqpolicy to install $prereqreceipt"
-				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u {$apiuser}:${apipass} ${jssurl}JSSResource/policies/name/$prereqpolicy -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
+				prereqpolicyid=$(curl $curlopts -H "Accept: application/xml" -s -u "$apiuser:$apipass" "${jssurl}JSSResource/policies/name/$(echo "$prereqpolicy" | sed -e 's/ /\+/g')" -X GET | xpath //policy/general/id 2> /dev/null | sed -e 's/<id>//;s/<\/id>//')
 				# (error checking)
 				# let's run the preq policy via id
 				# this is how we chain incremental updates
-				$jb policy -id "$prereqpolicyid"
+				$jamf_binary policy -id "$prereqpolicyid"
 			fi
 		fi
 	else
@@ -651,13 +654,6 @@ installCasperPkg()
 	secho "jamf is installing $casppkg"
 	# Standard pkg install here. 99% of cases.
 	$jb install "$jamfinstallopts" -package "$casppkg" -path "/Library/Application Support/JAMF/Waiting Room" -target /
-	install=$( ls "/Library/Application Support/JAMF/Waiting Room/" | grep ".app" )
-	if [ "$install" != "" ];
-	then
-		# OS Upgrade detected. Find CD pid and run startosinstall.
-		pid=$( pgrep cocoaDialog )
-		"/Library/Application Support/JAMF/Waiting Room/$install/Contents/Resources/startosinstall" --applicationpath "/Library/Application Support/JAMF/Waiting Room/$install" --nointeraction --pidtosignal $pid &
-	fi
 	# (insert error checking)
 	# remove from the waiting room
 
@@ -1058,7 +1054,7 @@ logoutUser()
 # loops through all user visible apps, quits, writes lsuielement changes to cocoa (prevent dock showing), uses ARD lockscreen to blank screen out.
 getAppList()
 (
-	applist="$(sudo -u "$user" osascript -e "tell application \"System Events\" to return displayed name of every application process whose (background only is false and displayed name is not \"Finder\")")"
+	applist="$(sudo -u "$consoleuser" osascript -e "tell application \"System Events\" to return displayed name of every application process whose (background only is false and displayed name is not \"Finder\")")"
 	echo "$applist"
 )
 
@@ -1066,18 +1062,19 @@ quitAllApps()
 (
 	applist=$(getAppList)
 	applistarray=$(echo "$applist" | sed -e 's/^/\"/' -e 's/$/\"/' -e 's/, /\" \"/g')
+
 	eval set "$applistarray"
 	for appname in "$@"
 	do
 		secho "trying to quit: $appname ..."
-		sudo -u "$user" osascript -e "ignoring application responses" -e "tell application \"$appname\" to quit" -e "end ignoring"
+		sudo -u "$consoleuser" osascript -e "ignoring application responses" -e "tell application \"$appname\" to quit" -e "end ignoring"
 	done
 )
 
 fauxLogout()
 (
 	secho "starting faux logout..."
-	user=$(who | grep console | awk '{print $1}')
+	#user=$(who | grep console | awk '{print $1}')
 	waitforlogout=30
 	tryquitevery=3
 	while [ "$(getAppList)" != "" ]
@@ -1295,7 +1292,7 @@ remindInstall()
 				if [ $deferremain -eq 0 ]
 				then
 					# no deferrals left. you gotta do it on the next notice!
-					secho "You can not defer the installation further. Launch Self Service and select Install New Software as soon as possible" 8 "$msgtitlenewsoft" "caution"
+					secho "You can not defer the installation further. Launch Self Service and select Install Cached Updates as soon as possible" 8 "$msgtitlenewsoft" "caution"
 				else
 					secho "Please launch Self Service and select Install New Software" 8 "$msgtitlenewsoft" "notice"
 				fi
@@ -1582,22 +1579,23 @@ deploySetup()
 	touch "$pddeployreceipt"
 	deployready=false
 
-	# Close any running apps
-	secho "closing any existing running apps..."
-	while [ "$(getAppList)" != "" ]
-	do
-		for (( c=1; c<=(( 30 / 3 )); c++ ))
-		do
-			quitAllApps
-			#check if all apps are quit break if so, otherwise fire every $tryquitevery
-			[ "$(getAppList)" == "" ] && break
-			sleep 3
-		done
-	done	
+    # Because DEP, we might run a little too soon.
+    # Wait until the Dock process has actually launched. This should solve any issues where this script runs and it hasn't.
 
-	# flush existing policy history, print welcome message
-    $jb flushPolicyHistory
-	$cdialogbin msgbox --width 400 --height 140 --icon-file "$lockscreenlogo" --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 10 --button1 "Ok"
+    until [[ $(pgrep Dock) ]]; do
+        wait
+    done
+
+    dockPID=$(pgrep Dock)
+
+    until [[ $(ps -p $dockPID -oetime= | tr '-' ':' | awk -F: '{ total=0; m=1; } { for (i=0; i < NF; i++) {total += $(NF-i)*m; m *= i >= 2 ? 24 : 60 }} {print total}') -ge 1 ]]; do
+        sleep 1
+    done
+
+    sleep 5
+
+	# print welcome message
+	$cdialogbin msgbox --icon-file "$lockscreenlogo" --title "Deployment" --informative-text "$msgpatchoodeploywelcome" --string-output --float --timeout 60 --button1 "Ok"
 
 	until $deployready
 	do
@@ -1695,7 +1693,7 @@ EOF
 
 	# show user that we're ready to go
 	secho "patchoo deploy is ready"
-	$cdialogbin msgbox --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provision. This will start in 2 minutes" --string-output --float --timeout 120 --button1 "Provision"
+	$cdialogbin msgbox --icon-file "$lockscreenlogo" --title "Provisioning" --informative-text "Ready to provision. This will start in 1 minutes" --string-output --float --timeout 60 --button1 "Provision"
 
 	# start spawned script here
 	/bin/bash "$lockscreenagent"
@@ -1733,14 +1731,14 @@ deployHandler()
 		secho "firing deploy-${patchoobuild} trigger ..."
 		$jb policy -event "deploy-${patchoobuild}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
-	
-	if department
+
+	if $pdusedepts
 	then
 		secho "firing deploy-${department} trigger ..."
 		$jb policy -event "deploy-${department}"	# calling our build specific trigger eg. deploy-management, deploy-studio
 	fi
 	
-	if building
+	if $pdusebuildings
 	then
 		secho "firing deploy-${building} trigger ..."
 		$jb policy -event "deploy-${building}"		# calling our build specific trigger eg. deploy-management, deploy-studio
@@ -1761,6 +1759,7 @@ deployHandler()
 	# deploy finished. now reboot.
 	secho "deployment process has finished, please wait ..."
 	rm "$pddeployreceipt"
+	rm "$lockscreenagent"
 	touch "${pddeployreceipt}.done"
 	sleep 3
 	$jb policy -event "restart"
@@ -1799,7 +1798,6 @@ deploysoftware()
 	secho "Deploy process complete!"
 	sleep 5
 	rm "$lockscreenagent"
-	rm /Library/Scripts/patchoo.sh
 	killall jamfHelper
 }
 
@@ -1819,7 +1817,7 @@ jamfRecon()
 
 cleanUp()
 {
-	rm -R "$patchootmp"
+	#rm -R "$patchootmp"
 	[ -f "$jssgroupfile" ] && rm "$jssgroupfile" 	# cached group membership
 	[ "$spawned" == "--spawned" ] && rm "$0" 	#if we are spawned, eat ourself.
 	IFS=$OLDIFS
