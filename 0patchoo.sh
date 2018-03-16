@@ -22,21 +22,22 @@
 #exec > $logfile 2>&1
 
 name="patchoo"
-version="0.9968"
+version="0.9969"
 
 # read only api user please!
 apiuser="apiro"
 apipass="apiro"
 
+binfolder="/Applications/Utilities"
 datafolder="/Library/Application Support/patchoo"
 pkgdatafolder="$datafolder/pkgdata"
 prefs="$datafolder/com.github.patchoo"
 jamfhelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 
 # Where's the jamf binary stored? This is for SIP compatibility.
-jb=`/usr/bin/which jamf`
+jamf_binary=`/usr/bin/which jamf`
 
- if [[ "$jb" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ ! -e "/usr/local/bin/jamf" ]]; then
+ if [[ "$jamf_binary" == "" ]] && [[ -e "/usr/sbin/jamf" ]] && [[ ! -e "/usr/local/bin/jamf" ]]; then
     jb="/usr/sbin/jamf"
  elif [[ "$jamf_binary" == "" ]] && [[ ! -e "/usr/sbin/jamf" ]] && [[ -e "/usr/local/bin/jamf" ]]; then
     jb="/usr/local/bin/jamf"
@@ -184,8 +185,10 @@ else
 	curlopts=""
 fi
 
-cdialogbin=$( /usr/bin/find /usr/local/cs/bin -iname "cocoaDialog" -type f )
-tnotifybin=$( /usr/bin/find /usr/local/cs/bin -iname "terminal-notifier" -type f )
+cdialog=$( /usr/bin/find $binfolder -iname "cocoaDialog.app" -type d )
+tnotify=$( /usr/bin/find $binfolder -iname "terminal-notifier.app" -type d )
+cdialogbin=$( /usr/bin/find $binfolder -iname "cocoaDialog" -type f )
+tnotifybin=$( /usr/bin/find $binfolder -iname "terminal-notifier" -type f )
 lockscreenagent="$datafolder/lockscreen.sh"
 jssgroupfile="$datafolder/$name-jssgroups.tmp"
 
@@ -1104,6 +1107,10 @@ fauxLogout()
 	# move the standard lock logo out of lockscreen app (we don't want a big padlock)
 	mv $patchootmp/LockScreen.app/Contents/Resources/Lock.jpg $patchootmp/LockScreen.app/Contents/Resources/Lock.jpg.backup
 	
+	# Fix Apple bug that doesn't allow lockscreen to hide menubar and dock
+	defaults write $patchootmp/LockScreen.app/Contents/Info.plist LSUIElement -int 0
+    defaults write $patchootmp/LockScreen.app/Contents/Info.plist LSUIPresentationMode -int 3
+
 	if [ -f "$lockscreenlogo" ]
 	then
 		sips -s format png --resampleWidth 512 "$lockscreenlogo" --out "$patchootmp/Lock.jpg" 2> /dev/null # it will throw an error about and png being name jpg
@@ -1115,9 +1122,9 @@ fauxLogout()
 	sleep 1
 
 	# makes changes to cocoaDialog
-	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 0
-	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 3
-	chmod 644 "${cdialog}/Contents/Info.plist"
+	defaults write $cdialog/Contents/Info.plist LSUIElement -int 0
+	defaults write $cdialog/Contents/Info.plist LSUIPresentationMode -int 3
+	chmod 644 $cdialog/Contents/Info.plist
 
 	touch /tmp/.patchoo-logoutdone
 	installpid=$(cat /tmp/.patchoo-install-pid)
@@ -1126,13 +1133,16 @@ fauxLogout()
 	do
 		sleep 1
 	done
+
 	# putting it back order
 	rm /tmp/.patchoo-install-pid
 	rm /tmp/.patchoo-logoutdone
+
 	# undo changes to cocoaDialog
-	defaults write "${cdialog}/Contents/Info.plist" LSUIElement -int 1
-	defaults write "${cdialog}/Contents/Info.plist" LSUIPresentationMode -int 0
-	chmod 644 "${cdialog}/Contents/Info.plist"
+	defaults write $cdialog/Contents/Info.plist LSUIElement -int 1
+	defaults write $cdialog/Contents/Info.plist LSUIPresentationMode -int 0
+	chmod 644 $cdialog/Contents/Info.plist
+
 	# unlock and logout
 	killall LockScreen
 	
